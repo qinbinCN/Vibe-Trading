@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -77,6 +78,7 @@ Decide which workflow to use based on the request:
 - Do NOT use `---` horizontal rules to separate sections — they render as ugly full-width lines on both CLI and web. Use `##` / `###` markdown headings instead.
 - All file paths are relative to run_dir (auto-injected).
 - Respond in the same language the user used.
+{language_instruction}
 - You have persistent cross-session memory (`remember` tool). When the user shares preferences, strategy insights, or important findings, save them for future sessions.
 - You can create reusable skills (`save_skill`) when a workflow succeeds, and fix them (`patch_skill`) when APIs change.
 {memory_section}
@@ -139,6 +141,14 @@ class ContextBuilder:
                 snapshot=self._persistent_memory.snapshot,
             )
 
+        # Language instruction: configurable via VIBE_TRADING_AGENT_LANG env var.
+        # Set to "zh" in agent/.env to force Chinese responses from the agent.
+        _agent_lang = os.environ.get("VIBE_TRADING_AGENT_LANG", "")
+        if _agent_lang == "zh":
+            language_instruction = "- **Always reply in Chinese (Simplified Chinese / 简体中文).** Use Chinese for all responses, explanations, analysis, and tool output descriptions unless the user explicitly asks for another language."
+        else:
+            language_instruction = ""
+
         return _SYSTEM_PROMPT.format(
             tool_count=len(self.registry._tools),
             skill_count=len(self.skills_loader.skills),
@@ -146,6 +156,7 @@ class ContextBuilder:
             skill_descriptions=self.skills_loader.get_descriptions(),
             memory_summary=self.memory.to_summary(),
             memory_section=memory_section,
+            language_instruction=language_instruction,
             current_datetime=now.strftime("%A, %B %d, %Y %H:%M (local)"),
         )
 
