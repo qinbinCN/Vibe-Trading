@@ -58,5 +58,5 @@ matplotlib>=3.7.0
 weasyprint>=60.0
 
 # A-stock data provider (a-stock-data)
-mootdx>=0.10
 stockstats
+# mootdx>=0.10  # Optional: install separately with --no-deps (httpx version conflict with core)

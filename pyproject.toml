@@ -56,8 +56,9 @@ dependencies = [
     "matplotlib>=3.7.0",
     "weasyprint>=60.0",
     "prompt_toolkit>=3.0.0",
-    "mootdx>=0.10",
     "stockstats",
+    # "mootdx>=0.10",  # Optional: install with --no-deps to avoid httpx conflict.
+    # Required by AStockDataProvider for K-line/financials/F10 layers.
 ]
 
 [project.urls]
