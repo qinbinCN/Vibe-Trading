@@ -21,8 +21,10 @@ _provider_modules: list[str] = [
 _registration_done = False
 
 
-def register_provider(cls: type[Any]) -> type[Any]:
+def register_provider(cls: type[DataProviderProtocol]) -> type[DataProviderProtocol]:
     """Class decorator: register a provider into the global registry."""
+    if not hasattr(cls, "name"):
+        raise TypeError("Provider class must define a 'name' class attribute")
     PROVIDER_REGISTRY[cls.name] = cls
     return cls
 
@@ -45,14 +47,16 @@ def get_provider(name: str) -> DataProviderProtocol | None:
     _ensure_registered()
     cls = PROVIDER_REGISTRY.get(name)
     if cls is None:
+        logger.warning("Provider '%s' not found in registry", name)
         return None
     try:
         instance = cls()
     except Exception as exc:
-        logger.debug("Provider %s failed to construct: %s", name, exc)
+        logger.warning("Provider '%s' failed to construct: %s", name, exc)
         return None
     if instance.is_available():
         return instance
+    logger.info("Provider '%s' is not available (is_available() returned False)", name)
     return None
 
 

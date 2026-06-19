@@ -23,5 +23,11 @@ class DataProviderProtocol(Protocol):
         ...
 
     def check_prerequisites(self) -> list[str]:
-        """Return a list of missing dependencies (empty = all satisfied)."""
+        """Return a list of missing dependencies (empty = all satisfied).
+
+        Note: This is a free-form informational method, not required by the
+        registry for availability checks — :meth:`is_available` serves that
+        role. Registry consumers may call this method to present user-facing
+        diagnostics (e.g. missing system packages or API keys).
+        """
         ...
