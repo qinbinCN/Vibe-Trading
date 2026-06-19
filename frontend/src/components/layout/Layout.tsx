@@ -1,26 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useSearchParams } from "react-router-dom";
-import { Activity, BarChart3, Bot, Languages, Moon, Sun, Plus, Trash2, Pencil, MessageSquare, ChevronsLeft, ChevronsRight, Settings, Layers, Loader2, Globe } from "lucide-react";
+import { Activity, BarChart3, Bot, Moon, Sun, Plus, Trash2, Pencil, MessageSquare, ChevronsLeft, ChevronsRight, Settings, Layers, Loader2, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { api, type SessionItem } from "@/lib/api";
 import { useAgentStore } from "@/stores/agent";
 import { ConnectionBanner } from "@/components/layout/ConnectionBanner";
-import { useI18n } from "@/lib/i18n";
 
 // Bump on each release; one place keeps the footer in sync with package.json.
 const APP_VERSION = "v0.1.9";
 
 export function Layout() {
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useTranslation();
 
   const NAV = [
-    { to: "/", icon: BarChart3, label: t.home },
-    { to: "/agent", icon: Bot, label: t.agent },
-    { to: "/runtime", icon: Activity, label: t.runtime },
-    { to: "/alpha-zoo", icon: Layers, label: t.alphaZoo },
-    { to: "/settings", icon: Settings, label: t.settings },
-    { to: "/correlation", icon: BarChart3, label: t.correlation },
+    { to: "/", icon: BarChart3, label: t("layout.home") },
+    { to: "/agent", icon: Bot, label: t("layout.agent") },
+    { to: "/runtime", icon: Activity, label: t("layout.runtime") },
+    { to: "/alpha-zoo", icon: Layers, label: t("layout.alphaZoo") },
+    { to: "/settings", icon: Settings, label: t("layout.settings") },
+    { to: "/correlation", icon: BarChart3, label: t("layout.correlation") },
   ];
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
@@ -30,6 +31,8 @@ export function Layout() {
   const sseStatus = useAgentStore(s => s.sseStatus);
   const sseRetryAttempt = useAgentStore(s => s.sseRetryAttempt);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("qa-sidebar") === "collapsed");
+
+  const locale = i18n.language?.startsWith("zh") ? "zh" : "en";
 
   const activeSessionId = searchParams.get("session");
   const streamingSessionId = useAgentStore(s => s.streamingSessionId);
@@ -69,6 +72,11 @@ export function Layout() {
       setSessions((prev) => prev.map((s) => s.session_id === sid ? { ...s, title: renameValue.trim() } : s));
     } catch { /* ignore */ }
     setRenameTarget(null);
+  };
+
+  const toggleLang = () => {
+    const next = locale === "zh" ? "en" : "zh-CN";
+    i18n.changeLanguage(next);
   };
 
   return (
@@ -116,12 +124,12 @@ export function Layout() {
             <div className="flex items-center justify-between px-4 py-2">
               <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <MessageSquare className="h-3.5 w-3.5" />
-                Sessions
+                {t("layout.sessions")}
               </span>
               <Link
                 to="/agent"
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                title={t.newChat}
+                title={t("layout.newChat")}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Link>
@@ -135,7 +143,7 @@ export function Layout() {
                   ))}
                 </div>
               ) : sessions.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-muted-foreground/60">{t.noSessions}</p>
+                <p className="px-3 py-2 text-xs text-muted-foreground/60">{t("layout.noSessions")}</p>
               ) : null}
               {sessions.map((s) => {
                 const isActive = s.session_id === activeSessionId;
@@ -178,22 +186,22 @@ export function Layout() {
                     )}
                     {!isRenaming && isDeleting ? (
                       <div className="absolute right-0.5 flex items-center gap-0.5">
-                        <button onClick={() => deleteSession(s.session_id)} className="p-1 text-danger hover:bg-danger/10 rounded text-[10px] font-medium">{t.confirmDelete}</button>
-                        <button onClick={() => setDeleteTarget(null)} className="p-1 text-muted-foreground hover:bg-muted rounded text-[10px]">{t.cancelDelete}</button>
+                        <button onClick={() => deleteSession(s.session_id)} className="p-1 text-danger hover:bg-danger/10 rounded text-[10px] font-medium">{t("layout.confirm")}</button>
+                        <button onClick={() => setDeleteTarget(null)} className="p-1 text-muted-foreground hover:bg-muted rounded text-[10px]">{t("layout.cancel")}</button>
                       </div>
                     ) : !isRenaming ? (
                       <div className="absolute right-1 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRenameTarget(s.session_id); setRenameValue(s.title || ""); }}
                           className="p-1 text-muted-foreground hover:text-foreground rounded"
-                          title={t.rename}
+                          title={t("layout.rename")}
                         >
                           <Pencil className="h-3 w-3" />
                         </button>
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(s.session_id); }}
                           className="p-1 text-muted-foreground hover:text-danger rounded"
-                          title={t.delete}
+                          title={t("layout.delete")}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -213,13 +221,13 @@ export function Layout() {
         <div className={cn("border-t", collapsed ? "p-1 flex flex-col items-center gap-1" : "p-3 space-y-2")}>
           {collapsed ? (
             <>
-              <button onClick={() => setLocale(locale === "en" ? "zh" : "en")} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={locale === "en" ? "中文" : "English"}>
+              <button onClick={toggleLang} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={locale === "zh" ? "English" : "中文"}>
                 <Globe className="h-3.5 w-3.5" />
               </button>
-              <button onClick={toggle} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={dark ? t.lightMode : t.darkMode}>
+              <button onClick={toggle} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={dark ? t("layout.light") : t("layout.dark")}>
                 {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
               </button>
-              <button onClick={() => setCollapsed(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={t.expand}>
+              <button onClick={() => setCollapsed(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors" title={t("layout.expand")}>
                 <ChevronsRight className="h-3.5 w-3.5" />
               </button>
             </>
@@ -231,20 +239,20 @@ export function Layout() {
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-                  {dark ? t.lightMode : t.darkMode}
+                  {dark ? t("layout.light") : t("layout.dark")}
                 </button>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+                    onClick={toggleLang}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Globe className="h-3.5 w-3.5" />
-                    {locale === "en" ? "中文" : "EN"}
+                    {locale === "zh" ? "EN" : "中文"}
                   </button>
                   <button
                     onClick={() => setCollapsed(true)}
                     className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                    title={t.collapse}
+                    title={t("layout.collapse")}
                   >
                     <ChevronsLeft className="h-3.5 w-3.5" />
                   </button>
@@ -252,11 +260,11 @@ export function Layout() {
               </div>
               <div className="flex items-center justify-between">
                 <button
-                  onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+                  onClick={toggleLang}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Languages className="h-3.5 w-3.5" />
-                  {locale === "en" ? "中文" : "English"}
+                  <Globe className="h-3.5 w-3.5" />
+                  {locale === "zh" ? "English" : "中文"}
                 </button>
                 <p className="text-xs text-muted-foreground/60">{APP_VERSION}</p>
               </div>
