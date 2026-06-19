@@ -477,3 +477,274 @@ class AStockDataProvider:
                   "change_pct": item.get("changePct"),
                   "lead_stock": item.get("leadStock", ""),
                   "reason": item.get("reason", "")} for item in items]
+
+    # ------------------------------------------------------------------
+    # Layer 4: 资金面 / 筹码 (5 endpoints)
+    # ------------------------------------------------------------------
+
+    def get_margin_trading(self, code: str, start_date: str = "", end_date: str = "") -> list[dict]:
+        """Fetch margin trading (融资融券) daily details."""
+        filters = [f'(SECURITY_CODE="{_strip_code(code)}")']
+        if start_date:
+            filters.append(f'(TRADE_DATE>="{start_date}")')
+        if end_date:
+            filters.append(f'(TRADE_DATE<="{end_date}")')
+        return eastmoney_datacenter(
+            report_name="RPT_MARGIN_TRADINGDETAIL",
+            filter_str=" AND ".join(filters),
+            sort_columns="TRADE_DATE", sort_types="-1",
+            page_size=200,
+        )
+
+    def get_block_trades(self, code: str, start_date: str = "", end_date: str = "") -> list[dict]:
+        """Fetch block trade (大宗交易) records with buyer/seller brokerage names."""
+        filters = [f'(SECURITY_CODE="{_strip_code(code)}")']
+        if start_date:
+            filters.append(f'(TRADE_DATE>="{start_date}")')
+        if end_date:
+            filters.append(f'(TRADE_DATE<="{end_date}")')
+        return eastmoney_datacenter(
+            report_name="RPT_BLOCKTRADE",
+            filter_str=" AND ".join(filters),
+            sort_columns="TRADE_DATE", sort_types="-1",
+            page_size=100,
+        )
+
+    def get_shareholder_changes(self, code: str) -> list[dict]:
+        """Fetch quarterly shareholder count changes (筹码集中度)."""
+        return eastmoney_datacenter(
+            report_name="RPT_F10_FINANCE_SHAREHOLDERNUMBER",
+            filter_str=f'(SECURITY_CODE="{_strip_code(code)}")',
+            sort_columns="END_DATE", sort_types="-1",
+            page_size=50,
+        )
+
+    def get_dividend_history(self, code: str) -> list[dict]:
+        """Fetch dividend/split history (分红送转)."""
+        return eastmoney_datacenter(
+            report_name="RPT_F10_FINANCE_DIVIDEND",
+            filter_str=f'(SECURITY_CODE="{_strip_code(code)}")',
+            sort_columns="EQUITY_DATE", sort_types="-1",
+            page_size=50,
+        )
+
+    def get_fund_flow_120d(self, code: str) -> pd.DataFrame:
+        """Fetch 120-day daily-level major/retail fund flow via EastMoney push2his."""
+        clean = _strip_code(code)
+        market = 1 if clean.startswith(("6", "9")) else 0
+        url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+        params = {
+            "lmt": "120", "klt": "101",
+            "secid": f"{market}.{clean}",
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+        }
+        r = em_get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("data") or not data["data"].get("klines"):
+            return pd.DataFrame()
+        rows = []
+        for line in data["data"]["klines"]:
+            parts = line.split(",")
+            if len(parts) >= 6:
+                rows.append({
+                    "date": parts[0],
+                    "main_net": _safe_float(parts[1]),
+                    "super_large_net": _safe_float(parts[3]),
+                    "large_net": _safe_float(parts[2]),
+                    "mid_net": _safe_float(parts[4]),
+                    "small_net": _safe_float(parts[5]),
+                })
+        return pd.DataFrame(rows)
+
+    # ------------------------------------------------------------------
+    # Layer 5: 新闻 (2 endpoints)
+    # ------------------------------------------------------------------
+
+    def get_stock_news(self, code: str, limit: int = 20) -> list[dict]:
+        """Fetch stock-specific news via EastMoney search-api-web.
+
+        Returns list of dicts with: title, url, publish_time, source
+        """
+        clean = _strip_code(code)
+        url = "https://search-api-web.eastmoney.com/search/jsonp"
+        params = {
+            "cb": "jQuery",
+            "param": json.dumps({
+                "uid": "",
+                "keyword": clean,
+                "type": ["cmsArticleWebOld"],
+                "client": "web",
+                "clientType": "web",
+                "pageIndex": 1,
+                "pageSize": limit,
+            }),
+            "_": str(int(time.time() * 1000)),
+        }
+        r = requests.get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
+        text = r.text
+        m = re.search(r"jQuery\((.*)\)", text, re.DOTALL)
+        if not m:
+            return []
+        data = json.loads(m.group(1))
+        articles = data.get("result", {}).get("cmsArticleWebOld", [])
+        if isinstance(articles, dict):
+            articles = list(articles.values())
+        if not isinstance(articles, list):
+            return []
+        return [{"title": a.get("title", ""), "url": a.get("url", ""),
+                  "publish_time": a.get("publishTime", ""), "source": a.get("source", "")}
+                for a in articles[:limit]]
+
+    def get_global_news(self, limit: int = 50) -> list[dict]:
+        """Fetch 7x24 global financial news via EastMoney np-weblist."""
+        url = "https://np-weblist.eastmoney.com/comm/web/getNews"
+        params = {"client": "pc_web", "limit": str(limit)}
+        r = requests.get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
+        data = r.json()
+        items = data.get("data", {}).get("list", []) if isinstance(data, dict) else []
+        return [{"title": item.get("title", ""), "url": item.get("url", ""),
+                  "publish_time": item.get("showTime", ""), "summary": item.get("summary", "")}
+                for item in items]
+
+    # ------------------------------------------------------------------
+    # Layer 6: 基础数据 (4 endpoints)
+    # ------------------------------------------------------------------
+
+    def get_financial_snapshot(self, code: str) -> dict[str, Any]:
+        """Fetch quarterly financial snapshot (37 fields) via mootdx finance."""
+        from mootdx.finance import Finance
+        clean = _strip_code(code)
+        market = 1 if clean.startswith(("6", "9")) else 0
+        client = Finance.factory(market="std")
+        df = client.finance(symbol=clean, market=market)
+        if df is None or df.empty:
+            return {}
+        row = df.iloc[-1].to_dict()
+        return {str(k).lower(): v for k, v in row.items()}
+
+    def get_company_f10(self, code: str, category: str = "gszl") -> str:
+        """Fetch F10 company profile data via mootdx.
+
+        Args:
+            category: 'gszl'(公司资料), 'gdbd'(股东变动), 'cwbl'(财务比率),
+                      'gsgg'(公司公告), 'yjbg'(业绩报告), 'zcfzb'(资产负债表),
+                      'lrb'(利润表), 'xjllb'(现金流量表), 'gdhs'(股东户数)
+        """
+        from mootdx.finance import Finance
+        clean = _strip_code(code)
+        market = 1 if clean.startswith(("6", "9")) else 0
+        client = Finance.factory(market="std")
+        return client.F10(symbol=clean, market=market, category=category)
+
+    def get_stock_info(self, code: str) -> dict[str, Any]:
+        """Fetch stock basic info (industry, shares, market cap, listing date) via EastMoney push2."""
+        clean = _strip_code(code)
+        market = 1 if clean.startswith(("6", "9")) else 0
+        url = "https://push2.eastmoney.com/api/qt/stock/get"
+        params = {
+            "secid": f"{market}.{clean}",
+            "fields": "f57,f58,f100,f84,f85,f116,f95",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+        }
+        r = em_get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("data"):
+            return {}
+        d = data["data"]
+        return {
+            "code": d.get("f57"), "name": d.get("f58"),
+            "industry": d.get("f100"), "total_shares": d.get("f84"),
+            "float_shares": d.get("f85"), "market_cap": d.get("f116"),
+            "listing_date": d.get("f95"),
+        }
+
+    def get_financial_statements(self, code: str, report_type: str = "balance_sheet") -> pd.DataFrame:
+        """Fetch financial statements (balance sheet / income / cashflow) via Sina Finance.
+
+        Args:
+            report_type: 'balance_sheet', 'income_statement', or 'cashflow'
+        """
+        clean = _strip_code(code)
+        type_map = {"balance_sheet": "zcfzb", "income_statement": "lrb", "cashflow": "xjllb"}
+        sina_type = type_map.get(report_type, "zcfzb")
+        url = "https://quotes.sina.cn/cn/api/json_v2.php/data/CN_STOCK_A_" + sina_type
+        params = {"symbol": clean}
+        r = requests.get(url, params=params, headers={"User-Agent": UA, "Referer": "https://finance.sina.com.cn/"}, timeout=15)
+        data = r.json()
+        if not data.get("result") or not data["result"].get("data"):
+            return pd.DataFrame()
+        report_list = data["result"]["data"].get("report_list", {})
+        all_rows: list[dict] = []
+        for period, period_data in sorted(report_list.items()):
+            row_data = period_data.get("data", []) if isinstance(period_data, dict) else []
+            row: dict[str, Any] = {"period": period}
+            for item in row_data:
+                row[item.get("item_title", "")] = item.get("item_value")
+            all_rows.append(row)
+        return pd.DataFrame(all_rows)
+
+    # ------------------------------------------------------------------
+    # Layer 7: 公告 (1 endpoint)
+    # ------------------------------------------------------------------
+
+    _orgid_cache: dict[str, str] = {}
+
+    def _cninfo_orgid(self, code: str) -> str:
+        """Fetch CNInfo orgId for a stock code (cached at module level)."""
+        if code in self._orgid_cache:
+            return self._orgid_cache[code]
+        try:
+            url = "https://www.cninfo.com.cn/new/data/szse_stock.json"
+            r = requests.get(url, headers={"User-Agent": UA}, timeout=15)
+            data = r.json()
+            for item in data.get("stockList", []):
+                if item.get("code") == code:
+                    org_id = str(item.get("orgId", ""))
+                    self._orgid_cache[code] = org_id
+                    return org_id
+        except Exception:
+            pass
+        fallback = f"gssz{code}" if code.startswith(("0", "3", "8")) else f"gssh{code}"
+        self._orgid_cache[code] = fallback
+        return fallback
+
+    def get_announcements(self, code: str = "", keyword: str = "",
+                           start_date: str = "", end_date: str = "",
+                           page: int = 1, page_size: int = 30) -> list[dict]:
+        """Fetch A-share announcements via CNInfo (巨潮)."""
+        if keyword:
+            r = requests.post(
+                "https://www.cninfo.com.cn/new/fulltextSearch/full",
+                data={"searchkey": keyword, "sdate": start_date or "", "edate": end_date or "",
+                       "isfulltext": "true", "sortName": "pubdate", "sortType": "desc",
+                       "pageNum": str(page), "pageSize": str(page_size)},
+                headers={"User-Agent": UA, "Referer": "https://www.cninfo.com.cn/"},
+                timeout=15,
+            )
+            data = r.json()
+            records = data.get("announcements", []) if isinstance(data, dict) else []
+            return [{"title": rec.get("announcementTitle", ""),
+                      "url": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=" + rec.get("announcementId", ""),
+                      "publish_date": rec.get("announcementTime", ""),
+                      "stock_code": rec.get("secCode", ""),
+                      "stock_name": rec.get("secName", "")} for rec in records[:page_size]]
+        elif code:
+            clean = _strip_code(code)
+            org_id = self._cninfo_orgid(clean)
+            r = requests.post(
+                "https://www.cninfo.com.cn/new/disclosure",
+                data={"stock": f"{org_id},{clean}", "pageNum": str(page), "pageSize": str(page_size),
+                       "column": "szse", "plate": "sz;sh;bj"},
+                headers={"User-Agent": UA, "Referer": "https://www.cninfo.com.cn/"},
+                timeout=15,
+            )
+            data = r.json()
+            records = data.get("classifiedAnnouncements", []) if isinstance(data, dict) else []
+            return [{"title": rec.get("announcementTitle", ""),
+                      "url": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=" + rec.get("announcementId", ""),
+                      "publish_date": rec.get("announcementTime", ""),
+                      "stock_code": rec.get("secCode", ""),
+                      "stock_name": rec.get("secName", "")} for rec in records[:page_size]]
+        return []
