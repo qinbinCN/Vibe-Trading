@@ -56,6 +56,8 @@ dependencies = [
     "matplotlib>=3.7.0",
     "weasyprint>=60.0",
     "prompt_toolkit>=3.0.0",
+    "mootdx>=0.10",
+    "stockstats",
 ]
 
 [project.urls]
