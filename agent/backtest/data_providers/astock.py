@@ -204,7 +204,7 @@ class AStockDataProvider:
         return results
 
     def get_index_quote(self, codes: list[str]) -> dict[str, dict]:
-        """Fetch index/ETF quotes via Tencent. Accepts codes like ['sh000001', 'sz399006']."""
+        """Fetch index/ETF quotes via Tencent. Accepts raw codes like ['000001', '399006'] (same as get_realtime_quote)."""
         return self.get_realtime_quote(codes)
 
     # ------------------------------------------------------------------
@@ -229,7 +229,7 @@ class AStockDataProvider:
             "source": "WEB", "client": "WEB",
         }
         if code:
-            params["filter"] = f'(INDUSTRY_CODE="{_strip_code(code)}")'
+            params["filter"] = f'(SECURITY_CODE="{_strip_code(code)}")'
         if keyword:
             params["keyword"] = keyword
         r = em_get("https://reportapi.eastmoney.com/report/list", params=params, timeout=15)
@@ -240,7 +240,7 @@ class AStockDataProvider:
 
     def download_report_pdf(self, url: str, save_path: str = "") -> bytes:
         """Download a research report PDF from EastMoney URL."""
-        r = requests.get(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"}, timeout=30)
+        r = em_get(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"}, timeout=30)
         r.raise_for_status()
         if save_path:
             with open(save_path, "wb") as f:
@@ -339,7 +339,7 @@ class AStockDataProvider:
             "market_id": "1" if market == "hgt" else "3",
             "beg": date, "end": date,
         }
-        r = requests.get(url, params=params, headers={"User-Agent": UA}, timeout=15)
+        r = em_get(url, params=params, headers={"User-Agent": UA}, timeout=15)
         data = r.json()
         if not data.get("data") or not data["data"].get("klines"):
             return pd.DataFrame()
@@ -582,7 +582,7 @@ class AStockDataProvider:
             }),
             "_": str(int(time.time() * 1000)),
         }
-        r = requests.get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
+        r = em_get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
         text = r.text
         m = re.search(r"jQuery\((.*)\)", text, re.DOTALL)
         if not m:
@@ -601,7 +601,7 @@ class AStockDataProvider:
         """Fetch 7x24 global financial news via EastMoney np-weblist."""
         url = "https://np-weblist.eastmoney.com/comm/web/getNews"
         params = {"client": "pc_web", "limit": str(limit)}
-        r = requests.get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
+        r = em_get(url, params=params, headers={"User-Agent": UA, "Referer": "https://www.eastmoney.com/"}, timeout=15)
         data = r.json()
         items = data.get("data", {}).get("list", []) if isinstance(data, dict) else []
         return [{"title": item.get("title", ""), "url": item.get("url", ""),
