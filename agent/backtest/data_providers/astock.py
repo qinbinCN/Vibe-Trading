@@ -206,3 +206,88 @@ class AStockDataProvider:
     def get_index_quote(self, codes: list[str]) -> dict[str, dict]:
         """Fetch index/ETF quotes via Tencent. Accepts codes like ['sh000001', 'sz399006']."""
         return self.get_realtime_quote(codes)
+
+    # ------------------------------------------------------------------
+    # Layer 2: 研报 (4 endpoints) — eastmoney reportapi + THS + iwencai
+    # ------------------------------------------------------------------
+
+    def get_research_reports(self, code: str = "", keyword: str = "",
+                              page: int = 1, page_size: int = 20) -> list[dict]:
+        """Fetch research reports via EastMoney reportapi.
+
+        Args:
+            code: Optional stock code filter
+            keyword: Optional keyword search
+            page: Page number (1-based)
+            page_size: Results per page
+        Returns:
+            List of dicts with keys: title, org_name, rating, date, pdf_url, eps_2025, eps_2026, eps_2027
+        """
+        params: dict[str, str] = {
+            "pageNumber": str(page), "pageSize": str(page_size),
+            "sortColumns": "NOTICE_DATE", "sortTypes": "-1",
+            "source": "WEB", "client": "WEB",
+        }
+        if code:
+            params["filter"] = f'(INDUSTRY_CODE="{_strip_code(code)}")'
+        if keyword:
+            params["keyword"] = keyword
+        r = em_get("https://reportapi.eastmoney.com/report/list", params=params, timeout=15)
+        d = r.json()
+        if d.get("result") and d["result"].get("data"):
+            return d["result"]["data"]
+        return []
+
+    def download_report_pdf(self, url: str, save_path: str = "") -> bytes:
+        """Download a research report PDF from EastMoney URL."""
+        r = requests.get(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"}, timeout=30)
+        r.raise_for_status()
+        if save_path:
+            with open(save_path, "wb") as f:
+                f.write(r.content)
+        return r.content
+
+    def get_consensus_eps(self, code: str) -> dict[str, dict]:
+        """Fetch consensus EPS estimates via THS (basic.10jqka.com.cn).
+
+        Returns dict keyed by year with fields: eps, high, low, analyst_count
+        """
+        clean = _strip_code(code)
+        url = f"https://basic.10jqka.com.cn/{clean}/worth.html"
+        headers = {"User-Agent": UA}
+        r = requests.get(url, headers=headers, timeout=15)
+        r.encoding = "gbk"
+        html = r.text
+        results: dict[str, dict] = {}
+        pattern = r'"ycpj":(\[.*?\])'
+        m = re.search(pattern, html, re.DOTALL)
+        if m:
+            data = json.loads(m.group(1))
+            for item in data:
+                year = str(item.get("year", ""))
+                results[year] = {
+                    "eps": item.get("eps"),
+                    "high": item.get("high"),
+                    "low": item.get("low"),
+                    "analyst_count": item.get("analystCount"),
+                }
+        return results
+
+    def search_reports_nl(self, query: str, limit: int = 10) -> list[dict]:
+        """Semantic search for research reports via iwencai (requires IWENCAI_API_KEY).
+
+        Falls back gracefully with an empty list if API key is not configured.
+        """
+        api_key = os.environ.get("IWENCAI_API_KEY", "")
+        if not api_key:
+            logger.info("iwencai search skipped: IWENCAI_API_KEY not set")
+            return []
+        base = os.environ.get("IWENCAI_BASE_URL", "https://openapi.iwencai.com")
+        url = f"{base}/v1/report/search"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        r = requests.post(url, json={"query": query, "limit": limit}, headers=headers, timeout=30)
+        if r.status_code != 200:
+            logger.warning("iwencai search returned %s: %s", r.status_code, r.text[:200])
+            return []
+        data = r.json()
+        return data.get("results", []) if isinstance(data, dict) else []
