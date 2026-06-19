@@ -50,6 +50,7 @@ from src.market_data import (
     fetch_market_data_json,
     get_loader,
 )
+from backtest.data_providers.registry import get_provider
 
 mcp = FastMCP("Vibe-Trading")
 
@@ -1447,6 +1448,204 @@ def scan_shadow_signals(
     if date:
         params["date"] = date
     return registry.execute("scan_shadow_signals", params)
+
+
+# ── a-stock-data MCP tools ────────────────────────────────────────────
+
+
+@mcp.tool
+def get_research_reports(
+    code: str = "",
+    keyword: str = "",
+    page: int = 1,
+    page_size: int = 20,
+) -> str:
+    """Search A-share research reports from EastMoney + THS consensus EPS.
+
+    Args:
+        code: Stock code filter, e.g. 600519 (optional).
+        keyword: Keyword search (optional).
+        page: Page number, 1-based.
+        page_size: Results per page.
+    """
+    import json
+    from typing import Any
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    result: dict[str, Any] = {"reports": provider.get_research_reports(code=code, keyword=keyword, page=page, page_size=page_size)}
+    if code:
+        try:
+            result["consensus_eps"] = provider.get_consensus_eps(code)
+        except Exception:
+            pass
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+def get_stock_news(code: str = "", global_news: bool = False, limit: int = 20) -> str:
+    """Fetch A-share stock news and/or global 7x24 financial news.
+
+    Args:
+        code: Stock code for individual stock news (optional).
+        global_news: Also fetch global 7x24 news headlines.
+        limit: Max entries per category.
+    """
+    import json
+    from typing import Any
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    result: dict[str, Any] = {}
+    if code:
+        result["stock_news"] = provider.get_stock_news(code, limit=limit)
+    if global_news:
+        result["global_news"] = provider.get_global_news(limit=limit)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+def get_announcements(
+    code: str = "",
+    keyword: str = "",
+    start_date: str = "",
+    end_date: str = "",
+    page: int = 1,
+    page_size: int = 30,
+) -> str:
+    """Search A-share stock announcements via CNInfo (巨潮资讯网).
+
+    Args:
+        code: Stock code filter (optional).
+        keyword: Full-text keyword search (optional).
+        start_date: Start date YYYY-MM-DD (optional).
+        end_date: End date YYYY-MM-DD (optional).
+        page: Page number.
+        page_size: Results per page.
+    """
+    import json
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    announcements = provider.get_announcements(
+        code=code, keyword=keyword, start_date=start_date, end_date=end_date,
+        page=page, page_size=page_size,
+    )
+    return json.dumps({"announcements": announcements, "count": len(announcements)}, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+def get_stock_profile(code: str, f10_category: str = "gszl") -> str:
+    """Fetch A-share stock fundamental profile (financial snapshot, F10, basic info).
+
+    Args:
+        code: Stock code, e.g. 600519, 000001.
+        f10_category: F10 category — gszl(公司资料), gdbd(股东变动), cwbl(财务比率), gsgg(公司公告).
+    """
+    import json
+    from typing import Any
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    result: dict[str, Any] = {"code": code}
+    try:
+        result["financial_snapshot"] = provider.get_financial_snapshot(code)
+    except Exception as exc:
+        result["financial_snapshot_error"] = str(exc)
+    try:
+        result["stock_info"] = provider.get_stock_info(code)
+    except Exception as exc:
+        result["stock_info_error"] = str(exc)
+    try:
+        result["f10"] = provider.get_company_f10(code, category=f10_category)
+    except Exception as exc:
+        result["f10_error"] = str(exc)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+def get_stock_financials(code: str, report_type: str = "balance_sheet") -> str:
+    """Fetch A-share financial statements (balance sheet, income, cashflow) from Sina.
+
+    Args:
+        code: Stock code, e.g. 600519.
+        report_type: balance_sheet, income_statement, or cashflow.
+    """
+    import json
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    df = provider.get_financial_statements(code, report_type=report_type)
+    return json.dumps(
+        {"code": code, "report_type": report_type, "data": df.to_dict(orient="records") if not df.empty else [], "row_count": len(df)},
+        ensure_ascii=False, indent=2, default=str,
+    )
+
+
+@mcp.tool
+def get_market_signals(signal_type: str, code: str = "", market: str = "hgt", date: str = "", days: int = 90) -> str:
+    """Fetch A-share market signals: strong stocks, north flow, dragon-tiger, unlock calendar, sector ranking, themes.
+
+    Args:
+        signal_type: One of strong_stocks, north_flow, dragon_tiger_stock, dragon_tiger_market,
+                     unlock_calendar, sector_ranking, theme_attribution, concept_blocks.
+        code: Stock code (required for some signal types).
+        market: For north_flow — 'hgt' (沪股通) or 'sgt' (深股通).
+        date: Date YYYY-MM-DD (for dragon_tiger_market).
+        days: Days ahead for unlock_calendar.
+    """
+    import json
+    from typing import Any
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    result: dict[str, Any] = {"signal_type": signal_type}
+    if signal_type == "strong_stocks":
+        result["data"] = provider.get_strong_stocks().to_dict(orient="records")
+    elif signal_type == "north_flow":
+        result["data"] = provider.get_north_flow(market=market).to_dict(orient="records")
+    elif signal_type == "dragon_tiger_stock":
+        result["data"] = provider.get_dragon_tiger_stock(code)
+    elif signal_type == "dragon_tiger_market":
+        result["data"] = provider.get_dragon_tiger_market(date=date).to_dict(orient="records")
+    elif signal_type == "unlock_calendar":
+        result["data"] = provider.get_unlock_calendar(code=code, days=days)
+    elif signal_type == "sector_ranking":
+        result["data"] = provider.get_sector_ranking().to_dict(orient="records")
+    elif signal_type == "theme_attribution":
+        result["data"] = provider.get_theme_attribution()
+    elif signal_type == "concept_blocks":
+        result["data"] = provider.get_concept_blocks(code)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+def get_capital_flow(flow_type: str, code: str, start_date: str = "", end_date: str = "") -> str:
+    """Fetch A-share capital flow data: margin, block trades, shareholder changes, dividend, fund flow.
+
+    Args:
+        flow_type: One of margin, block_trades, shareholder, dividend, fund_flow_120d.
+        code: Stock code.
+        start_date: Start date YYYY-MM-DD (optional).
+        end_date: End date YYYY-MM-DD (optional).
+    """
+    import json
+    from typing import Any
+    provider = get_provider("astock")
+    if provider is None:
+        return json.dumps({"status": "error", "error": "AStockDataProvider unavailable"}, ensure_ascii=False)
+    result: dict[str, Any] = {"flow_type": flow_type, "code": code}
+    if flow_type == "margin":
+        result["data"] = provider.get_margin_trading(code, start_date=start_date, end_date=end_date)
+    elif flow_type == "block_trades":
+        result["data"] = provider.get_block_trades(code, start_date=start_date, end_date=end_date)
+    elif flow_type == "shareholder":
+        result["data"] = provider.get_shareholder_changes(code)
+    elif flow_type == "dividend":
+        result["data"] = provider.get_dividend_history(code)
+    elif flow_type == "fund_flow_120d":
+        result["data"] = provider.get_fund_flow_120d(code).to_dict(orient="records")
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
 
 # ---------------------------------------------------------------------------
