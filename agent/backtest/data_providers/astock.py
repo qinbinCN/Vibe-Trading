@@ -291,3 +291,189 @@ class AStockDataProvider:
             return []
         data = r.json()
         return data.get("results", []) if isinstance(data, dict) else []
+
+    # ------------------------------------------------------------------
+    # Layer 3: 信号 (9 endpoints) — THS hotspots + north-flow + eastmoney
+    # ------------------------------------------------------------------
+
+    def get_strong_stocks(self, concept: str = "") -> pd.DataFrame:
+        """Fetch strong stocks with theme attribution via THS.
+
+        Returns DataFrame with columns: code, name, change_pct, reason_tags
+        """
+        url = "https://eq.10jqka.com.cn/open/api/v1/stock/strong_stock/list"
+        headers = {"User-Agent": UA, "Referer": "https://www.10jqka.com.cn/"}
+        r = requests.get(url, headers=headers, timeout=15)
+        data = r.json()
+        if data.get("code") != 200:
+            return pd.DataFrame()
+        items = data.get("data", {}).get("list", [])
+        rows = []
+        for item in items:
+            tags = item.get("reasonTags", [])
+            rows.append({
+                "code": item.get("code", ""),
+                "name": item.get("name", ""),
+                "change_pct": item.get("changePct"),
+                "reason_tags": ",".join(t.get("reasonName", "") for t in tags) if tags else "",
+            })
+        if concept:
+            rows = [r for r in rows if concept in r["reason_tags"]]
+        return pd.DataFrame(rows)
+
+    def get_north_flow(self, market: str = "hgt", date: str = "") -> pd.DataFrame:
+        """Fetch north-bound minute-level capital flow.
+
+        Args:
+            market: 'hgt' (沪股通) or 'sgt' (深股通)
+            date: Date in YYYYMMDD format (default: today)
+        """
+        if not date:
+            date = time.strftime("%Y%m%d")
+        url = "https://push2his.eastmoney.com/api/qt/kamt.kline/get"
+        params = {
+            "fields1": "f1,f2,f3,f4",
+            "fields2": "f51,f52,f53,f54",
+            "klt": "1", "lmt": "500",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+            "market_id": "1" if market == "hgt" else "3",
+            "beg": date, "end": date,
+        }
+        r = requests.get(url, params=params, headers={"User-Agent": UA}, timeout=15)
+        data = r.json()
+        if not data.get("data") or not data["data"].get("klines"):
+            return pd.DataFrame()
+        rows = []
+        for line in data["data"]["klines"]:
+            parts = line.split(",")
+            if len(parts) >= 4:
+                rows.append({
+                    "time": parts[0],
+                    "net_flow": _safe_float(parts[1]),
+                    "buy_amount": _safe_float(parts[2]),
+                    "sell_amount": _safe_float(parts[3]),
+                })
+        return pd.DataFrame(rows)
+
+    def get_concept_blocks(self, code: str) -> list[dict]:
+        """Fetch stock concept/industry/regional block affiliations via EastMoney slist."""
+        clean = _strip_code(code)
+        url = "https://push2.eastmoney.com/api/qt/slist/get"
+        params = {
+            "spt": "3", "fltt": "2", "invt": "2",
+            "fields": "f12,f14,f3,f20",
+            "secid": f"1.{clean}" if clean.startswith(("6", "9")) else f"0.{clean}",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+        }
+        r = em_get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("data"):
+            return []
+        items = data["data"].get("slist", []) if isinstance(data["data"], dict) else data["data"]
+        if not items:
+            return []
+        return [{"bk_code": item.get("f12"), "bk_name": item.get("f14"),
+                  "change_pct": item.get("f3"), "market_cap": item.get("f20")}
+                for item in items]
+
+    def get_fund_flow_minute(self, code: str) -> pd.DataFrame:
+        """Fetch minute-level fund flow via EastMoney push2."""
+        clean = _strip_code(code)
+        market = 1 if clean.startswith(("6", "9")) else 0
+        url = "https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get"
+        params = {
+            "lmt": "0", "klt": "1",
+            "secid": f"{market}.{clean}",
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+        }
+        r = em_get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("data") or not data["data"].get("klines"):
+            return pd.DataFrame()
+        rows = []
+        for line in data["data"]["klines"]:
+            parts = line.split(",")
+            if len(parts) >= 6:
+                rows.append({
+                    "time": parts[0],
+                    "main_net": _safe_float(parts[1]),
+                    "super_large_net": _safe_float(parts[3]),
+                    "large_net": _safe_float(parts[2]),
+                    "mid_net": _safe_float(parts[4]),
+                    "small_net": _safe_float(parts[5]),
+                })
+        return pd.DataFrame(rows)
+
+    def get_dragon_tiger_stock(self, code: str) -> list[dict]:
+        """Fetch individual stock dragon-tiger board appearance records."""
+        clean = _strip_code(code)
+        return eastmoney_datacenter(
+            report_name="RPT_DAILY_BILLBOARDTRADINGDETAILS",
+            filter_str=f'(SECURITY_CODE="{clean}")',
+            sort_columns="TRADE_DATE", sort_types="-1",
+            page_size=50,
+        )
+
+    def get_dragon_tiger_market(self, date: str = "") -> pd.DataFrame:
+        """Fetch market-wide dragon-tiger board rankings for a date."""
+        if not date:
+            date = time.strftime("%Y-%m-%d")
+        data = eastmoney_datacenter(
+            report_name="RPT_DAILY_BILLBOARDTRADING",
+            filter_str=f'(TRADE_DATE>="{date}")',
+            sort_columns="NET_BUY_AMOUNT", sort_types="-1",
+            page_size=200,
+        )
+        return pd.DataFrame(data) if data else pd.DataFrame()
+
+    def get_unlock_calendar(self, code: str = "", days: int = 90) -> list[dict]:
+        """Fetch restricted-share unlock calendar."""
+        from datetime import datetime, timedelta
+        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        filters = []
+        if code:
+            filters.append(f'(SECURITY_CODE="{_strip_code(code)}")')
+        return eastmoney_datacenter(
+            report_name="RPT_LIFT_RESTRICTEDSHARES",
+            columns="SECURITY_CODE,SECURITY_NAME,LIFT_DATE,LIFT_SHARES,LIFT_MARKET_CAP",
+            filter_str=" AND ".join(filters) if filters else "",
+            sort_columns="LIFT_DATE", sort_types="1",
+            page_size=200,
+        )
+
+    def get_sector_ranking(self) -> pd.DataFrame:
+        """Fetch EastMoney sector/industry ranking."""
+        url = "https://push2.eastmoney.com/api/qt/clist/get"
+        params = {
+            "pn": "1", "pz": "200",
+            "po": "1", "np": "1",
+            "fltt": "2", "invt": "2",
+            "fid": "f3", "fs": "m:90+t:2",
+            "fields": "f2,f3,f4,f12,f14,f104,f105",
+            "ut": "b2884a393a59ad64002292a3e90d46a5",
+        }
+        r = em_get(url, params=params, timeout=15)
+        data = r.json()
+        if not data.get("data") or not data["data"].get("diff"):
+            return pd.DataFrame()
+        items = data["data"]["diff"]
+        rows = [{"code": item.get("f12"), "name": item.get("f14"),
+                  "change_pct": item.get("f3"), "up_count": item.get("f104"),
+                  "down_count": item.get("f105")} for item in items]
+        return pd.DataFrame(rows)
+
+    def get_theme_attribution(self) -> list[dict]:
+        """Fetch current market theme/concept hotspot attribution via THS."""
+        url = "https://eq.10jqka.com.cn/open/api/v1/stock/concept/list"
+        headers = {"User-Agent": UA, "Referer": "https://www.10jqka.com.cn/"}
+        r = requests.get(url, headers=headers, timeout=15)
+        data = r.json()
+        if data.get("code") != 200:
+            return []
+        items = data.get("data", {}).get("list", [])
+        return [{"concept_name": item.get("conceptName", ""),
+                  "change_pct": item.get("changePct"),
+                  "lead_stock": item.get("leadStock", ""),
+                  "reason": item.get("reason", "")} for item in items]
