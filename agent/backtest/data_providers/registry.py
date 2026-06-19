@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any
-
 from backtest.data_providers.base import DataProviderProtocol
 
 logger = logging.getLogger(__name__)
@@ -23,8 +21,8 @@ _registration_done = False
 
 def register_provider(cls: type[DataProviderProtocol]) -> type[DataProviderProtocol]:
     """Class decorator: register a provider into the global registry."""
-    if not hasattr(cls, "name"):
-        raise TypeError("Provider class must define a 'name' class attribute")
+    if not isinstance(getattr(cls, "name", None), str) or not cls.name:
+        raise TypeError("Provider class must define a non-empty 'name' class attribute (str)")
     PROVIDER_REGISTRY[cls.name] = cls
     return cls
 
