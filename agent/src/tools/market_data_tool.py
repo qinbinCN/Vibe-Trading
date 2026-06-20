@@ -15,9 +15,9 @@ class MarketDataTool(BaseTool):
     description = (
         "Fetch normalized OHLCV market data through the repository loader layer. "
         "For A-shares, uses local TDX .day files when TDX_ROOT_PATH is set (zero "
-        "network).  To avoid output truncation when you only need current prices, "
-        "use fields=['close'] and max_rows=5.  For full OHLCV analysis, omit fields "
-        "to get all columns (open, high, low, close, volume, turnover_rate)."
+        "network).  To avoid output truncation when you only need current price "
+        "and recent trend, use fields=['close'] and max_rows=10.  For full OHLCV "
+        "analysis, omit fields to get all columns (open,high,low,close,volume,turnover_rate)."
     )
     parameters = {
         "type": "object",

@@ -16,10 +16,11 @@ Filter stocks using fundamental financial data (PE/PB/ROE, etc.) to build value 
 1. **`get_financial_snapshot(code="600519")`** — returns 576 financial fields (EPS, NAV, ROE,
    revenue, total assets, float shares, etc.) with Chinese field names.  When
    `TDX_ROOT_PATH` is set, reads local gpcw files — zero network, zero API keys.
-2. **`get_market_data(codes=["600519.SH"], fields=["close"], max_rows=5)`** — returns
-   only the closing price (tiny output, no truncation).  Use `fields=["close","volume"]`
-   if you also need volume.  When `TDX_ROOT_PATH` is set, reads local .day files.
-   **Always use max_rows=5 when you only need the latest price.**
+2. **`get_market_data(codes=["600519.SH"], fields=["close"], max_rows=10)`** — returns
+   the last 10 closing prices (shows recent trend, compact output).  Use
+   `fields=["close","volume","turnover_rate"]` for richer context.  When
+   `TDX_ROOT_PATH` is set, reads local .day files.
+   **Always use max_rows=10 when you only need current price + recent trend.**
 3. Compute P/E, P/B, etc.: **current close from `get_market_data`** ÷ **financial data
    from `get_financial_snapshot`**.  Never use memory for current price.
 
