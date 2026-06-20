@@ -59,6 +59,7 @@ dependencies = [
     "stockstats",
     # "mootdx>=0.10",  # Optional: install with --no-deps to avoid httpx conflict.
     # Required by AStockDataProvider for K-line/financials/F10 layers.
+    # "pytdx>=1.72",  # Optional: local TDX .day file reader (tdx_local loader + gpcw finance).
 ]
 
 [project.urls]

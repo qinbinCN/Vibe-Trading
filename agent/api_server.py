@@ -200,6 +200,8 @@ class DataSourceSettingsResponse(BaseModel):
     baostock_supported: bool
     baostock_installed: bool
     baostock_message: str
+    tdx_root_path: str = ""
+    tdx_root_configured: bool = False
     env_path: str
 
 
@@ -208,6 +210,7 @@ class UpdateDataSourceSettingsRequest(BaseModel):
 
     tushare_token: Optional[str] = None
     clear_tushare_token: bool = False
+    tdx_root_path: Optional[str] = None
 
 
 # ---- V4 Session Models ----
@@ -1106,12 +1109,17 @@ def _build_data_source_settings_response(values: Optional[Dict[str, str]] = None
         baostock_message = "BaoStock package is installed, but this project has no BaoStock loader."
     else:
         baostock_message = "No BaoStock loader is registered in this project."
+    tdx_root = env_values.get("TDX_ROOT_PATH", "").strip()
+    tdx_configured = bool(tdx_root and Path(tdx_root).is_dir())
+
     return DataSourceSettingsResponse(
         tushare_token_configured=token_configured,
         tushare_token_hint=None,
         baostock_supported=supported,
         baostock_installed=installed,
         baostock_message=baostock_message,
+        tdx_root_path=tdx_root if tdx_configured else "",
+        tdx_root_configured=tdx_configured,
         env_path=_project_relative_path(ENV_PATH),
     )
 
@@ -1636,6 +1644,20 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
     elif "TUSHARE_TOKEN" in current_values:
         updates["TUSHARE_TOKEN"] = current_values["TUSHARE_TOKEN"]
 
+    # TDX_ROOT_PATH
+    if payload.tdx_root_path is not None:
+        new_path = payload.tdx_root_path.strip()
+        if new_path:
+            p = Path(new_path)
+            if p.is_dir():
+                updates["TDX_ROOT_PATH"] = str(p.resolve())
+            else:
+                updates["TDX_ROOT_PATH"] = new_path
+        else:
+            updates["TDX_ROOT_PATH"] = ""
+    elif "TDX_ROOT_PATH" in current_values:
+        updates["TDX_ROOT_PATH"] = current_values["TDX_ROOT_PATH"]
+
     if updates:
         _write_env_values(ENV_PATH, updates)
         token = updates.get("TUSHARE_TOKEN", "").strip()
@@ -1643,6 +1665,12 @@ async def update_data_source_settings(payload: UpdateDataSourceSettingsRequest):
             os.environ["TUSHARE_TOKEN"] = token
         else:
             os.environ.pop("TUSHARE_TOKEN", None)
+        # Sync TDX_ROOT_PATH to runtime
+        tdx_path = updates.get("TDX_ROOT_PATH", "").strip()
+        if tdx_path:
+            os.environ["TDX_ROOT_PATH"] = tdx_path
+        else:
+            os.environ.pop("TDX_ROOT_PATH", None)
 
     return _build_data_source_settings_response(_read_env_values(ENV_PATH))
 

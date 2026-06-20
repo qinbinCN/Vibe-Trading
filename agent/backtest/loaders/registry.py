@@ -38,6 +38,7 @@ VALID_SOURCES: set[str] = {
     "baostock",
     "tencent",
     "mootdx",
+    "tdx_local",
     "ccxt",
     "futu",
     "eastmoney",
@@ -82,6 +83,7 @@ def _ensure_registered() -> None:
         "backtest.loaders.baostock_loader",
         "backtest.loaders.tencent_loader",
         "backtest.loaders.mootdx_loader",
+        "backtest.loaders.tdx_local_loader",
         "backtest.loaders.ccxt_loader",
         "backtest.loaders.futu",
         "backtest.loaders.eastmoney_loader",
@@ -109,7 +111,7 @@ def _ensure_registered() -> None:
 # unavailable ``local`` request can degrade into an unrelated network source.
 # An explicit ``local`` request that is unavailable is a config problem the user
 # must see, not something to paper over with a Yahoo/Tencent fetch.
-_NO_NETWORK_FALLBACK_SOURCES: frozenset[str] = frozenset({"local"})
+_NO_NETWORK_FALLBACK_SOURCES: frozenset[str] = frozenset({"local", "tdx_local"})
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +124,7 @@ _NO_NETWORK_FALLBACK_SOURCES: frozenset[str] = frozenset({"local"})
 # that must be politely throttled; Finnhub/AlphaVantage/Tiingo/FMP are key-gated
 # REST fallbacks placed deeper in the chain.
 FALLBACK_CHAINS: dict[str, list[str]] = {
-    "a_share":   ["tencent", "mootdx", "eastmoney", "baostock", "akshare", "tushare", "local"],
+    "a_share":   ["tdx_local", "tencent", "mootdx", "eastmoney", "baostock", "akshare", "tushare", "local"],
     "us_equity": ["yahoo", "stooq", "sina", "eastmoney", "yfinance", "tiingo", "fmp", "finnhub", "alphavantage", "akshare", "local"],
     "hk_equity": ["eastmoney", "yahoo", "futu", "yfinance", "akshare", "local"],
     "crypto":    ["okx", "ccxt", "yfinance", "local"],

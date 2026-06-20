@@ -22,6 +22,7 @@ import random
 import re
 import time
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -116,21 +117,161 @@ class AStockDataProvider:
     version = "3.2.2"
 
     # ------------------------------------------------------------------
+    # Local gpcw cache (shared across instances)
+    # ------------------------------------------------------------------
+    _gpcw_df: pd.DataFrame | None = None
+    _gpcw_report_date: str | None = None
+    _gpcw_field_names: list[str] | None = None
+
+    @classmethod
+    def _load_gpcw_local(cls) -> pd.DataFrame | None:
+        """Load the latest gpcw zip from TDX_ROOT_PATH (cached at class level)."""
+        if cls._gpcw_df is not None:
+            return cls._gpcw_df
+
+        tdx_root = os.environ.get("TDX_ROOT_PATH", "").strip()
+        if not tdx_root:
+            return None
+        cw_dir = Path(tdx_root) / "vipdoc" / "cw"
+        if not cw_dir.is_dir():
+            return None
+
+        try:
+            from pytdx.reader import HistoryFinancialReader
+        except ImportError:
+            return None
+
+        zips = sorted(cw_dir.glob("gpcw*.zip"), reverse=True)
+        for z in zips:
+            if z.stat().st_size > 5000:
+                break
+        else:
+            return None
+
+        try:
+            reader = HistoryFinancialReader()
+            df = reader.get_df(str(z))
+            if df is not None and not df.empty:
+                # Apply Chinese field-name mapping
+                field_names = cls._get_gpcw_field_names()
+                if field_names:
+                    numeric_cols = [c for c in df.columns if c.startswith("col")]
+                    rename = {}
+                    for c in numeric_cols:
+                        col_num = int(c.replace("col", ""))
+                        if col_num < len(field_names):
+                            rename[c] = field_names[col_num]
+                    df = df.rename(columns=rename)
+                cls._gpcw_df = df
+                cls._gpcw_report_date = str(
+                    df["report_date"].iloc[0]
+                    if "report_date" in df.columns
+                    else "unknown"
+                )
+                logger.info(
+                    "astock: loaded local gpcw from %s — %d stocks, %d fields",
+                    z.name, df.shape[0], df.shape[1],
+                )
+        except Exception as exc:
+            logger.warning("astock: failed to load local gpcw: %s", exc)
+
+        return cls._gpcw_df
+
+    @staticmethod
+    def _get_gpcw_field_names() -> list[str]:
+        """Load the Chinese field-name list from mootdx's columns.py.
+
+        Done without ``import mootdx`` to avoid its tdxpy import requirement.
+        Returns an empty list when the file cannot be found or parsed.
+        """
+        if AStockDataProvider._gpcw_field_names is not None:
+            return AStockDataProvider._gpcw_field_names
+
+        import ast
+        import site
+
+        for site_dir in site.getsitepackages():
+            col_path = Path(site_dir) / "mootdx" / "financial" / "columns.py"
+            if col_path.is_file():
+                break
+        else:
+            AStockDataProvider._gpcw_field_names = []
+            return []
+
+        try:
+            raw = col_path.read_bytes()
+            for enc in ("utf-8", "gbk", "gb18030"):
+                try:
+                    text = raw.decode(enc)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                AStockDataProvider._gpcw_field_names = []
+                return []
+
+            tree = ast.parse(text)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name) and target.id == "columns":
+                            AStockDataProvider._gpcw_field_names = ast.literal_eval(
+                                node.value
+                            )
+                            logger.debug(
+                                "astock: loaded %d gpcw field names from mootdx",
+                                len(AStockDataProvider._gpcw_field_names),
+                            )
+                            return AStockDataProvider._gpcw_field_names
+        except Exception as exc:
+            logger.warning("astock: failed to load gpcw field names: %s", exc)
+
+        AStockDataProvider._gpcw_field_names = []
+        return []
+
+    # ------------------------------------------------------------------
     # Availability
     # ------------------------------------------------------------------
     def is_available(self) -> bool:
+        # Check mootdx (online TCP)
         try:
-            import mootdx
+            import mootdx  # noqa: F401
             return True
         except ImportError:
-            return False
+            pass
+        # Check pytdx + local TDX path
+        try:
+            import pytdx  # noqa: F401
+            tdx_root = os.environ.get("TDX_ROOT_PATH", "").strip()
+            if tdx_root and Path(tdx_root).is_dir():
+                return True
+        except ImportError:
+            pass
+        return False
 
     def check_prerequisites(self) -> list[str]:
         missing = []
+        has_mootdx = False
         try:
-            import mootdx
+            import mootdx  # noqa: F401
+            has_mootdx = True
         except ImportError:
-            missing.append("mootdx>=0.10")
+            pass
+
+        has_pytdx = False
+        try:
+            import pytdx  # noqa: F401
+            has_pytdx = True
+        except ImportError:
+            pass
+
+        has_tdx_path = bool(
+            os.environ.get("TDX_ROOT_PATH", "").strip()
+            and Path(os.environ["TDX_ROOT_PATH"].strip()).is_dir()
+        )
+
+        if not has_mootdx and not (has_pytdx and has_tdx_path):
+            missing.append("mootdx>=0.10 (or pytdx + TDX_ROOT_PATH)")
         try:
             import stockstats
         except ImportError:
@@ -613,7 +754,36 @@ class AStockDataProvider:
     # ------------------------------------------------------------------
 
     def get_financial_snapshot(self, code: str) -> dict[str, Any]:
-        """Fetch quarterly financial snapshot (37 fields) via mootdx finance."""
+        """Fetch latest financial snapshot — local gpcw first, mootdx TCP fallback.
+
+        When ``TDX_ROOT_PATH`` is configured, reads the newest gpcw zip locally
+        (584 fields with Chinese names).  Otherwise falls back to the mootdx TCP
+        protocol for a 37-field snapshot.
+        """
+        # Try local gpcw first
+        gpcw = self._load_gpcw_local()
+        if gpcw is not None:
+            clean = _strip_code(code)
+            if clean in gpcw.index:
+                row = gpcw.loc[clean]
+                # Convert to dict, filtering out NaN and keeping reasonable values
+                result: dict[str, Any] = {}
+                for col_name, val in row.items():
+                    if col_name == "report_date":
+                        result[col_name] = str(val)
+                        continue
+                    try:
+                        fv = float(val)
+                        if pd.isna(fv):
+                            continue
+                        result[col_name] = fv
+                    except (ValueError, TypeError):
+                        continue
+                result["_source"] = "tdx_local"
+                result["_report_date"] = self._gpcw_report_date
+                return result
+
+        # Fallback: mootdx TCP (online)
         from mootdx.finance import Finance
         clean = _strip_code(code)
         market = 1 if clean.startswith(("6", "9")) else 0
@@ -622,7 +792,9 @@ class AStockDataProvider:
         if df is None or df.empty:
             return {}
         row = df.iloc[-1].to_dict()
-        return {str(k).lower(): v for k, v in row.items()}
+        result = {str(k).lower(): v for k, v in row.items()}
+        result["_source"] = "mootdx_tcp"
+        return result
 
     def get_company_f10(self, code: str, category: str = "gszl") -> str:
         """Fetch F10 company profile data via mootdx.
