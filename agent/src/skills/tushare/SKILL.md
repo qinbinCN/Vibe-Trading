@@ -1,42 +1,42 @@
 ---
 name: tushare
-description: tushare是一个财经数据接口包，拥有丰富的数据内容，如股票、基金、期货、数字货币等行情数据，公司财务、基金经理等基本面数据。该模块通过标准化API方式统一了数据资产的对外服务方式，以帮助有需要的技术用户更实时、简洁、轻量的使用相关数据。
+description: tushare在线财经数据接口。A股日K线和财报数据优先使用 get_market_data + get_financial_snapshot（本地通达信离线，零网络、零token）。tushare作为补充和回退方案，用于本地TDX不覆盖的数据类型（分钟线、基金、期货、港股、美股、宏观等）。
 category: data-source
 ---
-# Tushare
+# Tushare（在线回退方案）
+
+## ⛔ A股数据：本地优先，tushare 仅作补充
+
+**当 `TDX_ROOT_PATH` 已配置时，A股日K线和财报数据必须优先走本地离线通道：**
+
+| 数据需求 | 优先工具 | 数据源 | 回退方案 |
+|---------|---------|--------|---------|
+| A股日K线 (OHLCV) | `get_market_data` | 本地 .day 文件，零网络 | tushare `daily` |
+| A股财报数据 (EPS/NAV/ROE…) | `get_financial_snapshot` | 本地 gpcw*.zip，576字段 | tushare `fina_indicator` |
+| A股分钟K线 (1m/5m/15m…) | tushare `stk_mins` | 在线（本地 TDX 不覆盖分钟线） | akshare |
+| 基金/期货/港股/美股/宏观 | tushare | 在线 | akshare |
+
+**只有在本地通达信数据不可用（TDX_ROOT_PATH 未设置或文件缺失）时，才回退到 tushare 在线 API。**
 
 ## 概述
 
-tushare是一个财经数据接口包，拥有丰富的数据内容，如股票、基金、期货、数字货币等行情数据，公司财务、基金经理等基本面数据。该模块通过标准化API方式统一了数据资产的对外服务方式，以帮助有需要的技术用户更实时、简洁、轻量的使用相关数据。
+tushare是一个财经数据接口包。需要 TUSHARE_TOKEN 环境变量。用于本地通达信不覆盖的数据类型。
 
 ## 快速上手
 
-- 安装python运行环境(推荐python3.7+)，并安装tushare依赖包(推荐从清华pypi镜像安装)。
-
-```bash
-pip install tushare -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-- Tushare官网注册，获取token，并配置环境变量。 [注册地址](https://tushare.pro/register)
-
-```bash
-export TUSHARE_TOKEN=your_token
-```
-
-- 查询Tushare接口文档，找到对应的接口。 [在线数据接口文档](https://tushare.pro/document/2)
-- 根据接口文档，使用python代码获取数据。（如**股票列表**接口）
+- 安装：`pip install tushare -i https://pypi.tuna.tsinghua.edu.cn/simple`
+- 注册获取token：[注册地址](https://tushare.pro/register)
+- 设置环境变量：`export TUSHARE_TOKEN=your_token`
+- 接口文档：[在线数据接口文档](https://tushare.pro/document/2)
 
 ```python
 import os
 import tushare as ts
 
-# 读取环境变量中的token, 或者读取本地记录的token
 token = os.getenv('TUSHARE_TOKEN') or ts.get_token()
-
-# 初始化pro接口实例
 pro = ts.pro_api(token)
 
-# 查询数据接口（*股票列表*），获取上市交易的股票列表
+# 查询A股股票列表
 df = pro.stock_basic(list_status='L', fields='ts_code,symbol,name,area,industry,list_date')
 print(df)
 ```

@@ -1,24 +1,30 @@
 ---
 name: akshare
 category: data-source
-description: AKShare financial data aggregator (18k+ stars). Free, no API key. Covers A-shares, US, HK, futures, macro, forex. Primary fallback for tushare and yfinance.
+description: AKShare — 在线数据聚合器（18k+ stars）。回退方案，仅在 get_market_data 不可用时用于 A 股日K线。US/HK/期货/宏观/外汇仍可使用。
 ---
+
+## ⛔ A股日K线：优先 get_market_data，akshare 仅作最后回退
+
+**当 `TDX_ROOT_PATH` 已配置时，A股日K线走本地通达信 .day 文件（零网络、零 token）。**
+不要写 `import akshare as ak; ak.stock_zh_a_hist(...)` — 直接用 `get_market_data` 工具。
+
+akshare 作为回退方案，用于：
+- 本地 TDX 不可用时（TDX_ROOT_PATH 未设置）
+- US/HK/期货/宏观/外汇数据（本地 TDX 不覆盖）
+- A股分钟线/日内数据（本地 TDX 不覆盖）
 
 ## Overview
 
-AKShare is a completely free, open-source Python financial data library. No registration or API key required. It aggregates data from public sources (Sina, East Money, etc.) covering Chinese and global markets.
+AKShare is a free, open-source Python financial data library. Uses online HTTP scraping (Sina, East Money, etc.) — subject to throttling and IP bans.
 
 - GitHub: https://github.com/akfamily/akshare (18k+ stars)
 - Install: `pip install akshare`
 
-## Quick Start
+## Quick Start (US/HK — NOT for A-share daily)
 
 ```python
 import akshare as ak
-
-# A-share daily OHLCV (前复权)
-df = ak.stock_zh_a_hist(symbol="000001", period="daily",
-                         start_date="20240101", end_date="20260101", adjust="qfq")
 
 # US stock daily
 df = ak.stock_us_hist(symbol="105.AAPL", period="daily",
