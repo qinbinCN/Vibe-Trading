@@ -781,9 +781,12 @@ class AStockDataProvider:
                         continue
                 result["_source"] = "tdx_local"
                 result["_report_date"] = self._gpcw_report_date
+                logger.info("astock: financial snapshot for %s → tdx_local gpcw (%d fields)",
+                            code, len(result))
                 return result
 
         # Fallback: mootdx TCP (online)
+        logger.info("astock: tdx_local gpcw not available for %s, falling back to mootdx TCP", code)
         from mootdx.finance import Finance
         clean = _strip_code(code)
         market = 1 if clean.startswith(("6", "9")) else 0

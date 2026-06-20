@@ -237,6 +237,11 @@ class DataLoader:
             logger.warning("tdx_local: TDX_ROOT_PATH is not set or not a directory")
             return {}
 
+        logger.info(
+            "tdx_local: fetching %d codes [%s → %s] from %s",
+            len(codes), start_date, end_date, root,
+        )
+
         # Ensure gpcw cache is warm for turnover rate
         gpcw = _load_gpcw_cache()
 
