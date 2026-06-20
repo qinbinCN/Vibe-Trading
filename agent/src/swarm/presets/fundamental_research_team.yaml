@@ -12,6 +12,15 @@ agents:
       ## Task
       Conduct comprehensive financial statement analysis of {target} ({market} market), identifying financial quality signals and potential risks.
 
+      ## ⚠️ Current Price Context Requirement
+
+      Financial statements are historical (quarterly).  Before interpreting ratios, call
+      `get_market_data` for {target} (60 trading days minimum) to obtain the **current
+      market price**.  Key ratios like P/E, P/B, FCF Yield, and dividend yield MUST be
+      computed with the current price from this call — NOT from memory.  If the price
+      cannot be fetched, explicitly state "current price not available" and avoid citing
+      price-dependent ratios.
+
       ## Analysis Framework
 
       ### I. Income Statement Analysis
@@ -29,20 +38,21 @@ agents:
       ### III. Cash Flow Statement Analysis
       - Operating cash flow: variance analysis vs net income, identifying earnings management
       - Investing cash flow: capex intensity, CAPEX/depreciation ratio to assess growth vs maturity stage
-      - Free cash flow (FCF): FCF Yield compared to P/E
+      - Free cash flow (FCF): FCF Yield computed with **current market price from get_market_data**
       - Financing activities: excessive reliance on external funding
 
       Use load_skill("financial-statement") for financial analysis standards; load_skill("fundamental-filter") for screening criteria.
-      Use the factor_analysis tool to extract key financial factor data.
+      Use factor_analysis to extract financial statement data.  Use get_market_data for current price.
 
       ## Output Requirements
-      1. **Financial Health Score** — Composite score 1–10, with rationale (equally weighted across earnings / assets / cash flow)
-      2. **Earnings Quality Judgment** — Identify earnings quality, label as "high quality / moderate / questionable" with core reasoning
-      3. **Financial Risk Warnings** — 3–5 core financial risk points, each with risk source and quantified severity
-      4. **Key Financial Metrics Table** — ROE / ROIC / gross margin / net margin / FCF margin / debt ratio and other core metrics, 3-year trend
-      5. **Improvement / Deterioration Signals** — Significant changes in the past 1–2 years, trend direction assessment
-      6. **Peer Comparison** — Key financial metrics vs industry average / sector leaders
-    tools: [bash, read_file, write_file, load_skill, factor_analysis]
+      1. **Current Market Price** — Closing price from `get_market_data`, with date and source
+      2. **Financial Health Score** — Composite score 1–10, with rationale (equally weighted across earnings / assets / cash flow)
+      3. **Earnings Quality Judgment** — Identify earnings quality, label as "high quality / moderate / questionable" with core reasoning
+      4. **Financial Risk Warnings** — 3–5 core financial risk points, each with risk source and quantified severity
+      5. **Key Financial Metrics Table** — ROE / ROIC / gross margin / net margin / FCF margin / debt ratio, 3-year trend.  **P/E, P/B, FCF Yield must use current price from get_market_data**
+      6. **Improvement / Deterioration Signals** — Significant changes in the past 1–2 years, trend direction assessment
+      7. **Peer Comparison** — Key financial metrics vs industry average / sector leaders
+    tools: [bash, read_file, write_file, load_skill, get_market_data, factor_analysis]
     skills: [financial-statement, fundamental-filter]
     max_iterations: 50
     timeout_seconds: 1800
@@ -57,20 +67,42 @@ agents:
       ## Task
       Conduct comprehensive valuation analysis of {target} ({market} market), using multiple methods to cross-validate whether current valuation is justified.
 
+      ## ⛔ CRITICAL: Real-Time Price Requirement (READ FIRST)
+
+      **Financial report data alone is STALE — it cannot be applied directly to the current market.**
+      Financial statements (gpcw/财报) report historical quarterly data; the current trading price, P/E,
+      P/B, and market cap change EVERY DAY. You MUST:
+
+      1. **FIRST — call `get_market_data` for {target}** to fetch the latest daily K-line bars
+         (at minimum the most recent 60 trading days).  Extract the **current closing price**,
+         **latest volume**, and **recent price trend** from this tool call.
+      2. **Use ONLY the price from `get_market_data`** as the "current market price" in ALL
+         valuation calculations — DCF comparison, P/E, P/B, PEG, EV/EBITDA multiples, target
+         price derivation, margin-of-safety computation.
+      3. **Financial report data provides the DENOMINATOR (earnings, book value, cash flow)** —
+         it does NOT provide the numerator (current price × shares).  Combining stale report
+         data with an untethered memory-price produces garbage valuations.
+      4. **If `get_market_data` fails or returns empty**, state clearly "current price unavailable —
+         valuation cannot be anchored to live market" and do NOT substitute with memory/training data.
+
       ## Valuation Method Matrix
 
-      ### I. Absolute Valuation
+      ### I. Absolute Valuation (requires current price from get_market_data)
       - **DCF Model**: Build a 3-stage discounted free cash flow model
         - Forecast period (5 years): based on historical growth, industry cycle, management guidance
         - Transition period (years 6–10): convergence toward industry average
         - Terminal value: Gordon Growth Model, perpetuity growth rate 1–3%
         - WACC: computed from capital structure (target company beta, risk-free rate, equity risk premium)
-      - **DDM Model** (for high-dividend securities): dividend discount, implied return vs current price
+        - **Compare DCF intrinsic value per share to current market price from get_market_data**
+      - **DDM Model** (for high-dividend securities): dividend discount, implied return vs **current price from get_market_data**
 
-      ### II. Relative Valuation
+      ### II. Relative Valuation (requires current price from get_market_data)
       - **Comparable Company Method**: select 3–5 industry peers, compare P/E / P/B / P/S / EV/EBITDA / EV/Sales
-      - **Historical Valuation Method**: compare current P/E and P/B to 5-year historical percentile, assess relative richness/cheapness
-      - **PEG Analysis**: P/E divided by earnings growth rate, assess whether growth premium is justified
+        - **Use current market price from get_market_data** × shares outstanding for market cap
+        - Use latest reported earnings/book value from financial statements for denominators
+      - **Historical Valuation Method**: compare **current P/E and P/B (using price from get_market_data)**
+        to 5-year historical percentile, assess relative richness/cheapness
+      - **PEG Analysis**: **Current P/E (from get_market_data price)** divided by earnings growth rate
 
       ### III. Asset-Based Approach (for capital-intensive / financial sectors)
       - Replacement cost method: estimate asset replacement value
@@ -78,21 +110,24 @@ agents:
 
       ### IV. Industry-Specific Valuation Metrics
       - Technology: EV/ARR, P/MAU, EV/GMV
-      - Financials: P/B, ROE-PB framework
-      - Real estate: NAV premium/discount
+      - Financials: P/B, ROE-PB framework (**current P/B from get_market_data price**)
+      - Real estate: NAV premium/discount (**current price from get_market_data**)
       - Consumer: EV/EBITDA, brand premium estimation
 
       Use load_skill("valuation-model") for valuation modeling standards; load_skill("earnings-forecast") for earnings forecasting methods.
-      Use the factor_analysis tool to extract valuation factor data.
+      Use factor_analysis to extract valuation factor data from financial statements.
+      **get_market_data is your FIRST tool call — do it before any valuation computation.**
 
       ## Output Requirements
-      1. **Valuation Summary Conclusion** — Explicit "overvalued / fair / undervalued" judgment with margin of safety calculation (% premium/discount of current price vs intrinsic value)
-      2. **DCF Key Assumptions and Calculation** — WACC, terminal growth rate, forecast period revenue growth rate and other key assumptions; DCF valuation range (bear / base / bull)
-      3. **Comparable Company Valuation Matrix** — Key valuation multiples for peer companies, explaining relative premium/discount and rationale
-      4. **Historical Valuation Percentile** — Current P/E and P/B vs historical percentile, interpreted alongside fundamental changes
-      5. **Target Price Calculation** — Weighted multi-method target price with 12-month upside/downside range
-      6. **Valuation Catalysts** — 3–5 positive and negative catalysts that could drive re-rating
-    tools: [bash, read_file, write_file, load_skill, factor_analysis]
+      1. **Current Market Price** — Explicitly state the closing price from `get_market_data` plus date and data source
+      2. **Valuation Summary Conclusion** — Explicit "overvalued / fair / undervalued" judgment with margin of safety calculation (% premium/discount of **current market price** vs intrinsic value)
+      3. **DCF Key Assumptions and Calculation** — WACC, terminal growth rate, forecast period assumptions; DCF valuation range (bear / base / bull); **compare each scenario to current market price**
+      4. **Comparable Company Valuation Matrix** — Key valuation multiples for peer companies, explaining relative premium/discount; **all multiples computed with current market prices**
+      5. **Historical Valuation Percentile** — Current P/E and P/B vs historical percentile (**current price from get_market_data**, historical data from factor_analysis)
+      6. **Target Price Calculation** — Weighted multi-method target price with 12-month upside/downside **vs current market price**
+      7. **Valuation Catalysts** — 3–5 positive and negative catalysts that could drive re-rating
+      8. **Data Freshness Disclaimer** — Note the date of: (a) current price from get_market_data, (b) financial report data used — flag any gap > 1 quarter
+    tools: [bash, read_file, write_file, load_skill, get_market_data, factor_analysis]
     skills: [valuation-model, earnings-forecast]
     max_iterations: 50
     timeout_seconds: 1800
@@ -162,20 +197,22 @@ agents:
 
       ## Report Integration Principles
       - **Consistency Check**: Do the conclusions across all three dimensions corroborate each other? Identify contradictions and provide reasoned reconciliation
+      - **Price Source Verification**: Verify that the current market price used in all valuation metrics (P/E, P/B, target price comparison) comes from `get_market_data` tool calls, NOT from memory or training data.  If the upstream analysts did not cite a tool-derived price, flag it as a data-quality gap.
       - **Priority Ranking**: Financial risk warnings > valuation reasonableness > long-term quality, but with integrated judgment across all three
-      - **Investment Rating Logic**: Buy / Outperform / Hold / Underperform / Sell — must be supported by quantitative evidence (target price, margin of safety)
+      - **Investment Rating Logic**: Buy / Outperform / Hold / Underperform / Sell — must be supported by quantitative evidence (**current market price from get_market_data**, target price, margin of safety)
       - **Full Risk Disclosure**: Avoid excessive optimism; negative factors must be explicitly stated
 
       Use load_skill("report-generate") for research report writing standards and format requirements.
 
       ## Output Requirements
-      1. **Investment Rating and Target Price** — Explicit rating (Buy / Outperform / Hold / Underperform / Sell) and 12-month target price, with % upside/downside
-      2. **Core Investment Thesis Summary** — Within 300 words, concisely present the 3 most critical investment reasons (why buy/not buy now)
-      3. **Financial Quality Summary** — Integrate financial analyst conclusions, focusing on earnings quality and financial health key findings
-      4. **Valuation Analysis Summary** — Integrate valuation analyst conclusions, explaining current valuation level and target price basis
-      5. **Moat and Growth Summary** — Integrate quality analyst conclusions, assessing long-term investment value
-      6. **Key Risk Factors** — Aggregate risks from all three dimensions, ranked by severity; each risk with estimated impact magnitude
-      7. **Catalysts and Time Windows** — Potential positive/negative catalysts in the next 3–6 months to help identify optimal entry timing
+      1. **Investment Rating and Target Price** — Explicit rating (Buy / Outperform / Hold / Underperform / Sell) and 12-month target price, with % upside/downside **vs current market price from get_market_data**
+      2. **Current Price & Data Freshness** — State current price, data date, and source.  Note the date of the financial report data used — flag if report data is >1 quarter old.
+      3. **Core Investment Thesis Summary** — Within 300 words, concisely present the 3 most critical investment reasons (why buy/not buy now)
+      4. **Financial Quality Summary** — Integrate financial analyst conclusions, focusing on earnings quality and financial health key findings
+      5. **Valuation Analysis Summary** — Integrate valuation analyst conclusions, explaining current valuation level and target price basis
+      6. **Moat and Growth Summary** — Integrate quality analyst conclusions, assessing long-term investment value
+      7. **Key Risk Factors** — Aggregate risks from all three dimensions, ranked by severity; each risk with estimated impact magnitude
+      8. **Catalysts and Time Windows** — Potential positive/negative catalysts in the next 3–6 months to help identify optimal entry timing
     tools: [bash, read_file, write_file, load_skill]
     skills: [report-generate]
     max_iterations: 50
