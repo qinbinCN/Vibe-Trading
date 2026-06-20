@@ -86,8 +86,11 @@ same-market sources automatically. Only set a concrete source when the user asks
 ### Analysis / research scenario
 
 1. Identify the data need, then read the Capability table for the tool + env key.
-2. If the need is plain OHLCV, call `get_market_data` — for A-shares this uses local
-   TDX .day files when `TDX_ROOT_PATH` is set, with zero network calls.
+2. **Avoid output truncation**: When you only need the current price, call
+   `get_market_data` with `fields=["close"]` and `max_rows=5`.  For PE/PB
+   calculation add `fields=["close","turnover_rate"]`.  Only omit `fields`
+   when you need the full OHLCV (all 6 columns) for technical analysis.
+   A-shares use local TDX .day files when `TDX_ROOT_PATH` is set, zero network.
 3. For A-share financial data (EPS, NAV, ROE, revenue, etc.), use
    `get_financial_snapshot` — it reads local gpcw*.zip files (576 fields) when
    `TDX_ROOT_PATH` is set, no network, no API keys.

@@ -11,7 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAX_ROWS = 250
+DEFAULT_MAX_ROWS = 60
 
 # Symbol -> market type.  When source="auto", each code is grouped by market
 # and the best available loader for that market is selected via the fallback
