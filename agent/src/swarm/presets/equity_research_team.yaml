@@ -78,7 +78,7 @@ agents:
 
       Always use load_skill("strategy-generate") for strategy writing standards.
       Use the backtest tool to validate the historical performance of stock selection logic.
-    tools: [bash, read_file, write_file, load_skill, get_market_data, backtest, factor_analysis]
+    tools: [bash, read_file, write_file, load_skill, get_market_data, get_financial_snapshot, backtest, factor_analysis]
     skills: [tushare, yfinance, strategy-generate, technical-basic, multi-factor, earnings-revision]
     max_iterations: 50
     timeout_seconds: 1800

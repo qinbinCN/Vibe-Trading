@@ -52,7 +52,7 @@ agents:
       5. **Key Financial Metrics Table** — ROE / ROIC / gross margin / net margin / FCF margin / debt ratio, 3-year trend.  **P/E, P/B, FCF Yield must use current price from get_market_data**
       6. **Improvement / Deterioration Signals** — Significant changes in the past 1–2 years, trend direction assessment
       7. **Peer Comparison** — Key financial metrics vs industry average / sector leaders
-    tools: [bash, read_file, write_file, load_skill, get_market_data, factor_analysis]
+    tools: [bash, read_file, write_file, load_skill, get_market_data, get_financial_snapshot, factor_analysis]
     skills: [financial-statement, fundamental-filter]
     max_iterations: 50
     timeout_seconds: 1800
@@ -127,7 +127,7 @@ agents:
       6. **Target Price Calculation** — Weighted multi-method target price with 12-month upside/downside **vs current market price**
       7. **Valuation Catalysts** — 3–5 positive and negative catalysts that could drive re-rating
       8. **Data Freshness Disclaimer** — Note the date of: (a) current price from get_market_data, (b) financial report data used — flag any gap > 1 quarter
-    tools: [bash, read_file, write_file, load_skill, get_market_data, factor_analysis]
+    tools: [bash, read_file, write_file, load_skill, get_market_data, get_financial_snapshot, factor_analysis]
     skills: [valuation-model, earnings-forecast]
     max_iterations: 50
     timeout_seconds: 1800
