@@ -10,7 +10,7 @@ import { useAgentStore } from "@/stores/agent";
 import { ConnectionBanner } from "@/components/layout/ConnectionBanner";
 
 // Bump on each release; one place keeps the footer in sync with package.json.
-const APP_VERSION = "v0.1.9";
+const APP_VERSION = "v0.1.10";
 
 export function Layout() {
   const { t } = useTranslation();
