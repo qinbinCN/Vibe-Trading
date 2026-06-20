@@ -1,22 +1,37 @@
 ---
 name: fundamental-filter
-description: Fundamental factor screening — filter stocks by PE/PB/ROE, financial statement fields, and other metrics for value or growth selection. Supports A-shares (via tushare extra_fields or fundamental_fields) and HK/US stocks (via yfinance Ticker info).
+description: Fundamental factor screening — filter stocks by PE/PB/ROE, financial statement fields. A-shares: prefer get_financial_snapshot + get_market_data (local TDX offline). Fallback: tushare. US/HK: yfinance.
 category: flow
 ---
 # Fundamental Factor Screening
 
 ## Purpose
 
-Filter stocks using fundamental financial data (PE/PB/ROE, etc.) to build value or growth screen signals for backtesting. Supports multiple markets with different data sources.
+Filter stocks using fundamental financial data (PE/PB/ROE, etc.) to build value or growth screen signals for backtesting.
+
+## ⛔ A-Share Data Priority (USE TOOLS FIRST)
+
+**For A-share analysis/research, do NOT write raw tushare scripts.**  Use these tools:
+
+1. **`get_financial_snapshot(code="600519")`** — returns 576 financial fields (EPS, NAV, ROE,
+   revenue, total assets, float shares, etc.) with Chinese field names.  When
+   `TDX_ROOT_PATH` is set, reads local gpcw files — zero network, zero API keys.
+2. **`get_market_data(codes=["600519.SH"])`** — returns current OHLCV K-line data with
+   turnover rate.  When `TDX_ROOT_PATH` is set, reads local .day files — zero network.
+3. Compute P/E, P/B, etc.: **current price from `get_market_data`** ÷ **financial data
+   from `get_financial_snapshot`**.  Never use memory for current price.
+
+Only fall back to tushare scripts when the tools are unavailable or for backtest
+config.json (which uses the source system, not tools).
 
 ## Market Support
 
-| Market | Data Source | Method | Supported Metrics |
-|--------|-----------|--------|------------------|
-| A-shares | tushare `daily_basic` | `extra_fields` in config.json | pe, pb, pe_ttm, ps_ttm, dv_ttm, total_mv, circ_mv, roe |
-| A-shares | Tushare statements | `fundamental_fields` in config.json | income, balancesheet, cashflow, fina_indicator fields |
-| US stocks | yfinance `Ticker.info` | Direct API call | trailingPE, forwardPE, priceToBook, returnOnEquity, marketCap, dividendYield |
-| HK stocks | yfinance `Ticker.info` | Direct API call | trailingPE, priceToBook, returnOnEquity, marketCap |
+| Market | Preferred Method | Fallback |
+|--------|-----------------|----------|
+| A-shares (analysis) | `get_financial_snapshot` + `get_market_data` (local TDX offline, zero network) | tushare `daily_basic` |
+| A-shares (backtest) | `source: "auto"` in config.json (uses tdx_local when available) | tushare |
+| US stocks | yfinance `Ticker.info` | — |
+| HK stocks | yfinance `Ticker.info` | — |
 
 ## Signal Logic
 
@@ -33,13 +48,29 @@ Filter stocks using fundamental financial data (PE/PB/ROE, etc.) to build value 
 2. ROE > roe_min (profitability floor)
 3. Market cap > mv_min (exclude micro-caps)
 
-## A-Share Usage (tushare)
+## A-Share Usage (Tool-Based — PREFERRED)
+
+Use `get_financial_snapshot` for financial data and `get_market_data` for current prices:
+
+```
+// 1. Get financial metrics (local gpcw, zero network)
+get_financial_snapshot(code="600519")
+  → returns: {基本每股收益: 36.18, 每股净资产: 189.98, 净资产收益率: 19.02, ...}
+
+// 2. Get current price (local .day file, zero network)
+get_market_data(codes=["600519.SH"], start_date="2026-06-10", end_date="2026-06-18")
+  → returns OHLCV with current close, volume, turnover_rate
+
+// 3. Compute: P/E = current_price / EPS,  P/B = current_price / NAV
+```
+
+## A-Share Backtest Usage (tushare — fallback)
 
 ### config.json
 
 ```json
 {
-  "source": "tushare",
+  "source": "auto",
   "codes": ["000001.SZ", "600036.SH", "000858.SZ"],
   "start_date": "2023-01-01",
   "end_date": "2024-12-31",

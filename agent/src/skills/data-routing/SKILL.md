@@ -27,7 +27,7 @@ per-source skill.
 | baostock | A-shares (free daily/min) | No | China network | data-routing |
 | tencent | A-shares, HK, US (never-banned) | No | Unrestricted | data-routing |
 | mootdx | A-shares (TDX servers, never-banned) | No | China network | data-routing |
-| tdx_local | A-shares (本地 .day 文件, 离线) | No (`TDX_ROOT_PATH`) | Offline | data-routing (runner-internal) |
+| tdx_local | A-shares (本地 .day 文件, 离线, **首选**) | No (`TDX_ROOT_PATH`) | **Offline — zero network** | data-routing |
 | futu | A/HK/US via OpenD gateway | Yes (OpenD running) | Local gateway | data-routing (runner-internal) |
 | local | User CSV/parquet on disk | No | Offline | data-routing (runner-internal) |
 | eastmoney | A-shares, HK, US equities | No (IP-throttled) | Unrestricted | data-routing |
@@ -58,6 +58,7 @@ is required only where listed (no key listed = free / no auth).
 | Sell-side research reports | `get_research_reports` | A-share | — |
 | Stock news | `get_stock_news` | A-share, US, HK | — |
 | SEC filings (EDGAR) | `get_sec_filings` | US | — |
+| Financial snapshot (财报快照, **推荐**) | `get_financial_snapshot` | A-share | — (本地 TDX 优先, 零网络) |
 | Financial statements | `get_financial_statements` | A-share, US, HK | — |
 | Options chain | `get_options_chain` | US | — |
 | Stock profile / fundamentals | `get_stock_profile` | US | — |
@@ -85,13 +86,17 @@ same-market sources automatically. Only set a concrete source when the user asks
 ### Analysis / research scenario
 
 1. Identify the data need, then read the Capability table for the tool + env key.
-2. If the need is plain OHLCV, call `get_market_data` and let source fallback run.
-3. Set any required env key before calling a key-gated tool; if it is missing,
+2. If the need is plain OHLCV, call `get_market_data` — for A-shares this uses local
+   TDX .day files when `TDX_ROOT_PATH` is set, with zero network calls.
+3. For A-share financial data (EPS, NAV, ROE, revenue, etc.), use
+   `get_financial_snapshot` — it reads local gpcw*.zip files (576 fields) when
+   `TDX_ROOT_PATH` is set, no network, no API keys.
+4. Set any required env key before calling a key-gated tool; if it is missing,
    report the missing key rather than failing silently.
 
 ### Source priority (for OHLCV by market)
 
-- **A-shares**: tencent / mootdx (never banned) > tushare (`TUSHARE_TOKEN`) >
+- **A-shares**: **tdx_local (本地离线, 首选)** > tencent / mootdx (never banned) > tushare (`TUSHARE_TOKEN`) >
   baostock / akshare > eastmoney (throttled).
 - **US stocks**: stooq / yahoo > tiingo / finnhub / fmp / alphavantage (key-gated) >
   sina / eastmoney (throttled) > yfinance.
