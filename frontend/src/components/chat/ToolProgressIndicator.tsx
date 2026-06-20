@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ProgressBar } from "@/components/chat/ProgressBar";
 import { localizeToolName } from "@/lib/tools";
 import type { ToolCallEntry } from "@/types/agent";
+import i18n from '@/i18n';
 
 /* ---------- ETA tracking (per-tool) ---------- */
 interface EtaSample {
@@ -80,8 +81,8 @@ function ToolRow({ entry, stepIndex, totalSteps, isHeader, connector = "none", e
 
   const localized = localizeToolName(entry.tool);
   const stepLabel = isHeader
-    ? `${totalSteps} tools running`
-    : `Step ${stepIndex} · ${localized}`;
+    ? i18n.t("thinking.runningTools", { count: totalSteps })
+    : i18n.t("thinking.stepLabel", { step: stepIndex, label: localized });
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-x-2 gap-y-0.5 text-xs min-w-0">
@@ -118,7 +119,7 @@ function ToolRow({ entry, stepIndex, totalSteps, isHeader, connector = "none", e
           )}
           {eta != null && (
             <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0">
-              ~{eta}s left
+              {i18n.t("thinking.timeLeft", { seconds: eta })}
             </span>
           )}
         </div>
@@ -229,7 +230,7 @@ export function ToolProgressIndicator({ toolCalls }: Props): JSX.Element | null 
       {/* Header row */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {aggregateIcon}
-        <span className="text-foreground">{running.length} tools running</span>
+        <span className="text-foreground">{i18n.t("thinking.runningTools", { count: running.length })}</span>
       </div>
       {/* Indented rows */}
       <div className="pl-4 space-y-1">
@@ -246,7 +247,7 @@ export function ToolProgressIndicator({ toolCalls }: Props): JSX.Element | null 
         {overflow > 0 && (
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
             <span className="text-border/60 shrink-0 w-3 text-center" aria-hidden="true">└</span>
-            <span>… +{overflow} more</span>
+            <span>{i18n.t("thinking.moreCount", { count: overflow })}</span>
           </div>
         )}
       </div>

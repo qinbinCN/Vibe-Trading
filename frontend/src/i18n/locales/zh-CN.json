@@ -482,7 +482,11 @@
     "processing": "处理中",
     "running": "运行中",
     "done": "完成",
-    "steps": "{{count}} 个步骤"
+    "steps": "{{count}} 个步骤",
+    "runningTools": "{{count}} 个工具运行中",
+    "stepLabel": "步骤 {{step}} · {{label}}",
+    "timeLeft": "剩余 ~{{seconds}}秒",
+    "moreCount": "还有 {{count}} 个"
   },
   "runnerStatus": {
     "connectorRuntime": "连接器运行时",
@@ -511,7 +515,19 @@
     "never": "从未",
     "unknown": "未知",
     "justNow": "刚刚",
-    "loadingInstructions": "正在加载连接器授权说明..."
+    "loadingInstructions": "正在加载连接器授权说明...",
+    "perOrder": "/单",
+    "perDay": "/日",
+    "noLeverage": "无杠杆",
+    "secondsAgo": "{{count}}秒前",
+    "minutesAgo": "{{count}}分钟前",
+    "hoursAgo": "{{count}}小时前",
+    "daysAgo": "{{count}}天前",
+    "runnerStoppedFor": "{{brokerKey}} 的运行器已停止",
+    "runnerStartedFor": "{{brokerKey}} 的运行器已启动",
+    "runnerControlFailed": "运行器控制失败。",
+    "fallbackInstruction": "运行 `vibe-trading connector list`，选择券商配置，然后从将持有连接器连接的桌面会话中运行 `vibe-trading connector authorize <配置>`。",
+    "expiresAtTitle": "到期 {{date}}"
   },
   "swarmStatus": {
     "agents": "{{done}}/{{total}} 个智能体",
@@ -543,7 +559,10 @@
     "failedToCommit": "提交 mandate 失败。",
     "noLeverage": "无杠杆",
     "leverageValue": "{{value}}× 杠杆",
-    "tradesPerDay": "{{count}} 笔/天"
+    "tradesPerDay": "{{count}} 笔/天",
+    "adjustMandate": "调整此 mandate",
+    "adjustPlaceholder": "例如：保持此设置但将每日上限提高到 10",
+    "expiresAt": "{{date}} 到期"
   },
   "messageBubble": {
     "copied": "已复制",
@@ -579,5 +598,27 @@
   },
   "errorBoundary": {
     "somethingWrong": "出了点问题"
+  },
+  "tools": {
+    "load_skill": "加载策略知识",
+    "write_file": "生成代码",
+    "edit_file": "编辑代码",
+    "read_file": "读取文件",
+    "run_backtest": "运行回测",
+    "bash": "运行命令",
+    "read_url": "读取网页",
+    "read_document": "读取文档",
+    "trading_connections": "列出交易连接器",
+    "trading_select_connection": "选择交易连接器",
+    "trading_check": "检查交易连接器",
+    "trading_account": "读取连接器账户",
+    "trading_positions": "读取连接器持仓",
+    "trading_orders": "读取连接器订单",
+    "trading_quote": "读取连接器报价",
+    "trading_history": "读取连接器历史",
+    "compact": "总结对话",
+    "create_task": "创建任务",
+    "update_task": "更新任务",
+    "spawn_subagent": "生成子智能体"
   }
 }

@@ -482,7 +482,11 @@
     "processing": "Processing",
     "running": "Running",
     "done": "Done",
-    "steps": "{{count}} steps"
+    "steps": "{{count}} steps",
+    "runningTools": "{{count}} tools running",
+    "stepLabel": "Step {{step}} · {{label}}",
+    "timeLeft": "~{{seconds}}s left",
+    "moreCount": "+ {{count}} more"
   },
   "runnerStatus": {
     "connectorRuntime": "Connector runtime",
@@ -511,7 +515,19 @@
     "never": "never",
     "unknown": "unknown",
     "justNow": "just now",
-    "loadingInstructions": "Loading connector authorization instructions..."
+    "loadingInstructions": "Loading connector authorization instructions...",
+    "perOrder": "/order",
+    "perDay": "/day",
+    "noLeverage": "no leverage",
+    "secondsAgo": "{{count}}s ago",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "runnerStoppedFor": "Runner stopped for {{brokerKey}}",
+    "runnerStartedFor": "Runner started for {{brokerKey}}",
+    "runnerControlFailed": "Runner control failed.",
+    "fallbackInstruction": "Run `vibe-trading connector list`, choose the broker profile, then run `vibe-trading connector authorize <profile>` from the desktop session that will hold the broker connection.",
+    "expiresAtTitle": "Expires {{date}}"
   },
   "swarmStatus": {
     "agents": "{{done}}/{{total}} agents",
@@ -543,7 +559,10 @@
     "failedToCommit": "Failed to commit mandate.",
     "noLeverage": "no leverage",
     "leverageValue": "{{value}}× leverage",
-    "tradesPerDay": "{{count}} trades/day"
+    "tradesPerDay": "{{count}} trades/day",
+    "adjustMandate": "Adjust this mandate",
+    "adjustPlaceholder": "e.g. keep this but raise the daily cap to 10",
+    "expiresAt": "expires {{date}}"
   },
   "messageBubble": {
     "copied": "Copied",
@@ -579,5 +598,27 @@
   },
   "errorBoundary": {
     "somethingWrong": "Something went wrong"
+  },
+  "tools": {
+    "load_skill": "Load strategy knowledge",
+    "write_file": "Generate code",
+    "edit_file": "Edit code",
+    "read_file": "Read file",
+    "run_backtest": "Run backtest",
+    "bash": "Run command",
+    "read_url": "Read webpage",
+    "read_document": "Read document",
+    "trading_connections": "List trading connectors",
+    "trading_select_connection": "Select trading connector",
+    "trading_check": "Check trading connector",
+    "trading_account": "Read connector account",
+    "trading_positions": "Read connector positions",
+    "trading_orders": "Read connector orders",
+    "trading_quote": "Read connector quote",
+    "trading_history": "Read connector history",
+    "compact": "Summarize conversation",
+    "create_task": "Create task",
+    "update_task": "Update task",
+    "spawn_subagent": "Spawn sub-agent"
   }
 }
