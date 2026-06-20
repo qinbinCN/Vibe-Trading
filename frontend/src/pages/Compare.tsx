@@ -252,7 +252,7 @@ export function Compare() {
   return (
     <div className="p-8 max-w-4xl space-y-6">
       <h1 className="text-xl font-bold flex items-center gap-2">
-        <GitCompare className="h-5 w-5" /> Strategy Comparison
+        <GitCompare className="h-5 w-5" /> {i18n.t("compare.title")}
       </h1>
 
       {/* Selectors */}
@@ -294,8 +294,8 @@ export function Compare() {
           <EquityChartOverlay
             leftCurve={leftCurve}
             rightCurve={rightCurve}
-            leftLabel={leftRun ? truncatePrompt(leftRun.prompt, 20) || "Baseline" : "Baseline"}
-            rightLabel={rightRun ? truncatePrompt(rightRun.prompt, 20) || "Compare" : "Compare"}
+            leftLabel={leftRun ? truncatePrompt(leftRun.prompt, 20) || i18n.t("compare.baseline") : i18n.t("compare.baseline")}
+            rightLabel={rightRun ? truncatePrompt(rightRun.prompt, 20) || i18n.t("compare.compare") : i18n.t("compare.compare")}
           />
         </div>
       )}

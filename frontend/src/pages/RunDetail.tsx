@@ -282,7 +282,7 @@ export function RunDetail() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted transition-colors"
                 title={i18n.t("runDetail.downloadTradesCsv")}
               >
-                <Download className="h-3.5 w-3.5" /> Download Trades CSV
+                <Download className="h-3.5 w-3.5" /> {i18n.t("runDetail.downloadTradesCsv")}
               </button>
             )}
             {run.metrics && (
@@ -291,7 +291,7 @@ export function RunDetail() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-muted transition-colors"
                 title={i18n.t("runDetail.downloadMetricsCsv")}
               >
-                <Download className="h-3.5 w-3.5" /> Download Metrics CSV
+                <Download className="h-3.5 w-3.5" /> {i18n.t("runDetail.downloadMetricsCsv")}
               </button>
             )}
           </div>
@@ -338,9 +338,9 @@ function RunCardTab({ card }: { card: RunCard }) {
   return (
     <div className="p-4 space-y-4">
       <div className="grid gap-3 md:grid-cols-4">
-        <RunCardStat label={i18n.t("runDetail.schema")} value={card.schema_version || "unknown"} />
+        <RunCardStat label={i18n.t("runDetail.schema")} value={card.schema_version || i18n.t("runDetail.unknown")} />
         <RunCardStat label={i18n.t("runDetail.generated")} value={formatRunCardValue(card.generated_at)} />
-        <RunCardStat label={i18n.t("runDetail.dataSources")} value={dataSources.length ? dataSources.join(", ") : "None recorded"} />
+        <RunCardStat label={i18n.t("runDetail.dataSources")} value={dataSources.length ? dataSources.join(", ") : i18n.t("runDetail.noneRecorded")} />
         <RunCardStat label={i18n.t("runDetail.warnings")} value={String(warnings.length)} tone={warnings.length ? "warning" : "normal"} />
       </div>
 

@@ -4,6 +4,7 @@ import { getChartTheme } from "@/lib/chart-theme";
 import { abbreviateNum } from "@/lib/formatters";
 import { echarts, CHART_GROUP, connectCharts } from "@/lib/echarts";
 import { useDarkMode } from "@/hooks/useDarkMode";
+import i18n from '@/i18n';
 
 interface Props {
   data: EquityPoint[];
@@ -106,7 +107,7 @@ export function EquityChart({ data, height = 300 }: Props) {
   }, [data, dark]);
 
   if (data.length === 0) {
-    return <div className="text-muted-foreground text-sm p-4">No equity data</div>;
+    return <div className="text-muted-foreground text-sm p-4">{i18n.t("chart.noEquityData")}</div>;
   }
   return <div ref={ref} style={{ height }} />;
 }

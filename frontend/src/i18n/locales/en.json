@@ -335,7 +335,9 @@
     "noValidationPayload": "No validation payload recorded.",
     "noArtifactChecksums": "No artifact checksums recorded.",
     "noCodeFiles": "No code files.",
-    "fullReport": "Full Report →"
+    "fullReport": "Full Report →",
+    "unknown": "unknown",
+    "noneRecorded": "None recorded"
   },
   "compare": {
     "title": "Strategy Comparison",
@@ -476,6 +478,12 @@
     "cardAcademic": "Curated long-horizon anomalies from the academic literature (value, momentum, quality, low-vol, etc.).",
     "jobLabel": "Job {{id}}"
   },
+  "chart": {
+    "noPriceData": "No price data",
+    "overlayClearAll": "Bare K (clear all)",
+    "noEquityData": "No equity data",
+    "noCorrelationData": "No correlation data"
+  },
   "validation": {
     "noData": "No validation data available.",
     "monteCarlo": "Monte Carlo Permutation Test",
@@ -501,6 +509,10 @@
     "avgReturn": "Avg Return",
     "avgSharpe": "Avg Sharpe",
     "windows": "Windows",
+    "numberSign": "#",
+    "sharpeCol": "Sharpe",
+    "tradesCol": "Trades",
+    "std": "std",
     "period2": "Period",
     "return": "Return",
     "maxDd": "Max DD",

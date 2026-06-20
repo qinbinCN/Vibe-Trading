@@ -335,7 +335,9 @@
     "noValidationPayload": "暂无验证数据记录。",
     "noArtifactChecksums": "暂无制品校验和记录。",
     "noCodeFiles": "暂无代码文件。",
-    "fullReport": "完整报告 →"
+    "fullReport": "完整报告 →",
+    "unknown": "未知",
+    "noneRecorded": "无记录"
   },
   "compare": {
     "title": "策略对比",
@@ -476,6 +478,12 @@
     "cardAcademic": "来自学术文献的精选长周期异象（价值、动量、质量、低波等）。",
     "jobLabel": "任务 {{id}}"
   },
+  "chart": {
+    "noPriceData": "暂无价格数据",
+    "overlayClearAll": "仅K线（清除全部）",
+    "noEquityData": "暂无净值数据",
+    "noCorrelationData": "暂无相关性数据"
+  },
   "validation": {
     "noData": "暂无验证数据。",
     "monteCarlo": "蒙特卡罗置换检验",
@@ -501,6 +509,10 @@
     "avgReturn": "平均收益",
     "avgSharpe": "平均夏普比率",
     "windows": "窗口数",
+    "numberSign": "#",
+    "sharpeCol": "夏普比率",
+    "tradesCol": "交易次数",
+    "std": "标准差",
     "period2": "时段",
     "return": "收益",
     "maxDd": "最大回撤",
