@@ -273,7 +273,19 @@
     "uploaded": "Uploaded: {{filename}}",
     "uploadFailed": "Upload failed: {{error}}",
     "failedToSend": "Failed to send message, please retry.",
-    "failedToContinue": "Failed to continue goal, please retry."
+    "failedToContinue": "Failed to continue goal, please retry.",
+    "runtimeBadge": "RUNTIME",
+    "met": "met",
+    "evidenceCount": "evidence",
+    "uploading": "Uploading...",
+    "haltTitle": "Instantly halt connector runtime activity",
+    "haltConnector": "Halt connector runtime",
+    "moreOptions": "More options",
+    "uploadPdf": "Upload PDF document",
+    "researchGoal": "Research Goal",
+    "agentSwarm": "Agent Swarm",
+    "exportTitle": "# Chat Export",
+    "exportTime": "Export time:"
   },
   "runDetail": {
     "title": "Run Detail",

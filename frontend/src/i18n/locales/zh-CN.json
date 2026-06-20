@@ -273,7 +273,19 @@
     "uploaded": "已上传：{{filename}}",
     "uploadFailed": "上传失败：{{error}}",
     "failedToSend": "发送消息失败，请重试。",
-    "failedToContinue": "继续目标失败，请重试。"
+    "failedToContinue": "继续目标失败，请重试。",
+    "runtimeBadge": "运行时",
+    "met": "已完成",
+    "evidenceCount": "条证据",
+    "uploading": "上传中...",
+    "haltTitle": "立即停止连接器运行时活动",
+    "haltConnector": "停止连接器运行时",
+    "moreOptions": "更多选项",
+    "uploadPdf": "上传 PDF 文档",
+    "researchGoal": "研究目标",
+    "agentSwarm": "智能体群体",
+    "exportTitle": "# 对话导出",
+    "exportTime": "导出时间"
   },
   "runDetail": {
     "title": "运行详情",
