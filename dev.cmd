@@ -10,15 +10,17 @@ echo ============================================
 :: ── Cleanup: kill leftover processes from previous runs ──────────────
 echo.
 echo [*] Cleaning up leftover processes...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8899.*LISTENING" 2^>nul') do (
+netstat -ano > "%TEMP%\vt-netstat.txt" 2>nul
+for /f "tokens=5" %%a in ('type "%TEMP%\vt-netstat.txt" ^| find ":8899"') do (
     echo   Killing PID %%a (port 8899)...
     taskkill /f /pid %%a >nul 2>&1
 )
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5899.*LISTENING" 2^>nul') do (
+for /f "tokens=5" %%a in ('type "%TEMP%\vt-netstat.txt" ^| find ":5899"') do (
     echo   Killing PID %%a (port 5899)...
     taskkill /f /pid %%a >nul 2>&1
 )
 taskkill /f /im vibe-trading.exe >nul 2>&1
+del "%TEMP%\vt-netstat.txt" >nul 2>&1
 echo   Cleanup done.
 
 :: ── Activate conda ───────────────────────────────────────────────────
